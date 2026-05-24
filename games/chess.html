@@ -402,7 +402,6 @@ function makeMove(fr, fc, tr, tc, promotionPiece=null){
   // Move piece
   board[tr][tc]=piece;
   board[fr][fc]=null;
-  playMove();
   
   // Pawn promotion
   if(t==='P' && (tr===0||tr===7)){
@@ -421,6 +420,8 @@ function makeMove(fr, fc, tr, tc, promotionPiece=null){
     if(tc>fc){board[tr][tc-1]=board[tr][7];board[tr][7]=null}
     else{board[tr][tc+1]=board[tr][0];board[tr][0]=null}
     playCastle();
+  } else {
+    playMove();
   }
   
   // Update castling rights
@@ -657,6 +658,7 @@ function handleClick(row, col){
     if(piece && getColor(piece)==='w'){
       selected={row,col};
       legalMoves=getLegalMoves(row,col);
+      playSelect();
       renderBoard();
       renderStatus();
     } else {
@@ -669,6 +671,7 @@ function handleClick(row, col){
     if(piece && getColor(piece)==='w'){
       selected={row,col};
       legalMoves=getLegalMoves(row,col);
+      playSelect();
       renderBoard();
       renderStatus();
     }
