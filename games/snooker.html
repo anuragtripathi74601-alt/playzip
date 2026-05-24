@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Snooker — PlayZip</title>
 <meta name="theme-color" content="#0A0A0F">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
@@ -46,8 +49,13 @@
   #cue-ball.aiming{box-shadow:0 0 16px var(--gold),inset -2px -2px 4px rgba(0,0,0,0.4)}
   @keyframes reSpot{0%{opacity:0;transform:translate(-50%,-50%) scale(0.3)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 
-  .cue-line{position:absolute;height:2px;background:linear-gradient(90deg,var(--gold),transparent);transform-origin:0 50%;pointer-events:none;z-index:4;opacity:0;transition:opacity 0.15s}
-  .cue-line.show{opacity:0.7}
+.cue-stick-wrapper{position:absolute;pointer-events:none;z-index:4;opacity:0;transition:opacity 0.08s}
+.cue-stick-wrapper.show{opacity:1}
+.cue-stick{height:6px;background:linear-gradient(to right,#2A1A0A 0%,#5C3A1E 10%,#C4A44A 30%,#D4B44A 50%,#A0782C 70%,#5C3A1E 85%,#3A2510 100%);border-radius:3px 2px 2px 3px;position:relative;box-shadow:0 1px 4px rgba(0,0,0,0.3);width:200px}
+.cue-stick::before{content:'';position:absolute;right:-3px;top:50%;transform:translateY(-50%);width:7px;height:8px;background:radial-gradient(circle at 40% 50%,#6A9BC5,#3A6B8A);border-radius:50%;box-shadow:inset 0 1px 2px rgba(255,255,255,0.3)}
+.cue-stick::after{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:14px;height:7px;background:linear-gradient(to bottom,#2A1A0A,#3A2A1A);border-radius:2px 0 0 2px}
+.ball.target-highlight{box-shadow:0 0 14px rgba(201,168,76,0.7),inset -2px -2px 4px rgba(0,0,0,0.4);animation:pulse-highlight 0.8s ease-in-out infinite}
+@keyframes pulse-highlight{0%,100%{box-shadow:0 0 10px rgba(201,168,76,0.5)}50%{box-shadow:0 0 20px rgba(201,168,76,0.9)}}
 
   .power-section{width:100%;display:flex;align-items:center;gap:10px;padding:3px 0}
   .power-label{font-size:11px;color:var(--text2);white-space:nowrap;min-width:50px}
@@ -131,7 +139,7 @@
       <div class="pocket"></div><div class="pocket"></div><div class="pocket"></div>
 
       <div id="ball-container">
-        <div class="cue-line" id="cue-line"></div>
+        <div class="cue-stick-wrapper" id="cue-stick-wrapper"><div class="cue-stick" id="cue-stick"></div></div>
         <div class="ball" id="cue-ball" style="left:22%;top:50%;background:radial-gradient(circle at 35% 35%,#fff,#ddd)"></div>
       </div>
 
@@ -172,7 +180,7 @@
     <button class="btn btn-outline btn-sm" onclick="resetGame()">🔄 New Frame</button>
   </div>
 
-  <div class="hint">⬆️⬇️ Arrow keys for power • Click cue ball → click table to aim & shoot</div>
+  <div class="hint">🖱️ Move to aim • Click + drag backward to charge power • Release to shoot! ⬆️⬇️ Arrow keys for power</div>
 
   <!-- SHOT HISTORY -->
   <div class="shot-history">
@@ -182,6 +190,16 @@
 </div>
 
 <script>
+// ============================================================
+// Read URL params — MUST be at the top so all functions can use them
+// ============================================================
+const snParams = new URLSearchParams(window.location.search);
+const snMode = snParams.get('mode') || '1v1';
+const snLevel = snParams.get('level') || 'free';
+const snFee = parseInt(snParams.get('fee')) || 0;
+const snPayout = parseInt(snParams.get('payout')) || 0;
+if (snMode) console.log(`Snooker mode: ${snMode}, Level: ${snLevel}, Fee: ${snFee}, Payout: ${snPayout}`);
+
 // ============================================================
 // SOUND EFFECTS — Web Audio API
 // ============================================================
@@ -324,10 +342,18 @@ let state = {
   shotHistory: []
 };
 
+// Cue stick drag state
+let cueDragState = {
+  charging: false,
+  lockX: null,
+  lockY: null
+};
+
 // DOM refs
 const $ = id => document.getElementById(id);
 const ballContainer = $('ball-container');
-const cueLine = $('cue-line');
+const cueStickWrapper = $('cue-stick-wrapper');
+const cueStick = $('cue-stick');
 const statusEl = $('status');
 const powerFill = $('power-fill');
 const powerVal = $('power-val');
@@ -431,25 +457,95 @@ function render() {
     cueEl.style.display = 'none';
   }
 
-  // Aim line
-  if ((state.phase === 'aim' || state.ballInHand) && state.aimX !== null) {
-    const dx = state.aimX - cue.x;
-    const dy = state.aimY - cue.y;
-    const len = Math.sqrt(dx*dx + dy*dy);
-    if (len > 1) {
-      cueLine.style.left = cue.x + '%';
-      cueLine.style.top = cue.y + '%';
-      const angle = Math.atan2(dy, dx) * (180/Math.PI);
-      const lineLen = Math.min(len * 0.5, 35);
-      cueLine.style.width = lineLen + '%';
-      cueLine.style.transform = `rotate(${angle}deg)`;
-      cueLine.classList.add('show');
-    } else {
-      cueLine.classList.remove('show');
-    }
-  } else {
-    cueLine.classList.remove('show');
+  // Render cue stick
+  renderCueStick();
+  
+  // Render target highlight
+  renderTargetHighlight();
+}
+
+// ============================================================
+// CUE STICK RENDERING & TARGET HIGHLIGHT
+// ============================================================
+
+function renderCueStick() {
+  if (!cueStickWrapper || !cueStick) return;
+
+  if (state.gameOver || state.turn !== 'player' || state.phase === 'moving' || state.ballInHand || state.aimX === null) {
+    cueStickWrapper.classList.remove('show');
+    return;
   }
+
+  const dx = state.aimX - cue.x;
+  const dy = state.aimY - cue.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < 0.5) {
+    cueStickWrapper.classList.remove('show');
+    return;
+  }
+
+  const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+  cueStickWrapper.style.left = cue.x + '%';
+  cueStickWrapper.style.top = cue.y + '%';
+  cueStickWrapper.style.transform = `rotate(${angle}deg)`;
+
+  if (cueDragState.charging) {
+    const pull = (state.power / 100) * 70;
+    cueStick.style.transform = `translateX(${-pull}px)`;
+  } else {
+    cueStick.style.transform = 'translateX(0)';
+  }
+
+  cueStickWrapper.classList.add('show');
+}
+
+function findTargetBall(aimX, aimY) {
+  const dx = aimX - cue.x;
+  const dy = aimY - cue.y;
+  const lineLen = Math.sqrt(dx*dx + dy*dy);
+  if (lineLen < 0.1) return null;
+  
+  const nx = dx / lineLen;
+  const ny = dy / lineLen;
+  
+  let closest = null;
+  let closestDist = Infinity;
+  
+  Object.values(balls).forEach(b => {
+    if (b.potted) return;
+    const bx = b.x - cue.x;
+    const by = b.y - cue.y;
+    const bLen = Math.sqrt(bx*bx + by*by);
+    if (bLen < 0.1) return;
+    const proj = (bx * nx + by * ny);
+    if (proj < 0) return;
+    const perpDist = Math.abs(bx * ny - by * nx);
+    if (perpDist < 5 && proj < closestDist) {
+      closest = b;
+      closestDist = proj;
+    }
+  });
+  
+  return closest;
+}
+
+function renderTargetHighlight() {
+  ballContainer.querySelectorAll('.ball.target-highlight').forEach(el => el.classList.remove('target-highlight'));
+  
+  if (state.gameOver || state.turn !== 'player' || state.aimX === null || state.ballInHand) return;
+  if (state.phase === 'moving') return;
+  
+  const target = findTargetBall(state.aimX, state.aimY);
+  if (!target) return;
+  
+  ballContainer.querySelectorAll('.ball:not(#cue-ball):not(.potted)').forEach(el => {
+    const elLeft = parseFloat(el.style.left);
+    const elTop = parseFloat(el.style.top);
+    if (Math.abs(elLeft - target.x) < 0.5 && Math.abs(elTop - target.y) < 0.5) {
+      el.classList.add('target-highlight');
+    }
+  });
 }
 
 // ============================================================
@@ -470,81 +566,97 @@ function isOnTable(pos) {
   return pos.x > 2 && pos.x < 98 && pos.y > 2 && pos.y < 98;
 }
 
-// Click cue ball to start aiming
-$('cue-ball').addEventListener('click', function(e) {
+// -----------------------------------------------------------
+// MOUSE EVENTS: Move → aim preview | Click+Drag → charge & shoot
+// -----------------------------------------------------------
+
+// Mouse move — always update aim direction (preview mode)
+ballContainer.addEventListener('mousemove', function(e) {
   if (state.gameOver || state.turn !== 'player') return;
-  e.stopPropagation();
-
-  if (state.ballInHand) {
-    placeCueBall(e);
-    return;
-  }
-
-  state.phase = 'aim';
-  setStatus('🎯 Table pe click karo jahan shoot karna hai');
-  render();
-});
-
-function placeCueBall(e) {
-  const pos = getTablePos(e);
-  if (!isOnTable(pos)) return;
-  let valid = true;
-  Object.values(balls).forEach(b => {
-    if (!b.potted && Math.sqrt((pos.x-b.x)**2 + (pos.y-b.y)**2) < 5) valid = false;
-  });
-  if (valid) {
-    cue.x = pos.x;
-    cue.y = pos.y;
-    state.ballInHand = false;
-    state.phase = 'aim';
-    setStatus('🎯 Cue ball placed! Click to aim.');
+  if (state.phase === 'moving' || state.ballInHand) return;
+  
+  if (cueDragState.charging) {
+    const pos = getTablePos(e);
+    if (!isOnTable(pos)) return;
+    const dx = pos.x - cueDragState.lockX;
+    const dy = pos.y - cueDragState.lockY;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const power = Math.min(100, (dist / 25) * 100);
+    setPower(power);
     render();
-  }
-}
-
-// Click table to aim
-ballContainer.addEventListener('click', function(e) {
-  if (state.gameOver || state.turn !== 'player') return;
-
-  if (state.ballInHand) {
-    placeCueBall(e);
-    return;
-  }
-
-  if (state.phase === 'aim') {
+  } else {
     const pos = getTablePos(e);
     if (!isOnTable(pos)) return;
     state.aimX = pos.x;
     state.aimY = pos.y;
+    state.phase = 'aim';
     const target = state.nextBall === 'red' ? '🔴 Red' : `🎨 ${state.nextBall.charAt(0).toUpperCase()+state.nextBall.slice(1)}`;
-    setStatus(`🔫 Aim set! ${target} pot karo! Adjust power, then click Shoot.`);
+    setStatus(`🎯 ${target} pe aim karo • Click + drag to charge power • Release to shoot!`);
     render();
   }
 });
 
-// Mouse move for aim line
-ballContainer.addEventListener('mousemove', function(e) {
-  if (state.phase !== 'aim' && !state.ballInHand) return;
+// Mouse down — handle ball-in-hand or lock aim direction and start charging
+ballContainer.addEventListener('mousedown', function(e) {
   if (state.gameOver || state.turn !== 'player') return;
-  if (state.aimX === null) return;
+  if (e.button !== 0) return;
+  
+  // Ball-in-hand: place cue ball on click
+  if (state.ballInHand) {
+    const pos = getTablePos(e);
+    if (isOnTable(pos)) {
+      let valid = true;
+      Object.values(balls).forEach(b => {
+        if (!b.potted && Math.sqrt((pos.x-b.x)**2 + (pos.y-b.y)**2) < 5) valid = false;
+      });
+      if (valid) {
+        cue.x = pos.x; cue.y = pos.y;
+        state.ballInHand = false;
+        state.phase = 'aim';
+        setStatus('🎯 Cue ball placed! Aim karo.');
+        render();
+      }
+    }
+    return;
+  }
+  
+  if (state.phase === 'moving') return;
+  
   const pos = getTablePos(e);
   if (!isOnTable(pos)) return;
-  const dx = pos.x - cue.x;
-  const dy = pos.y - cue.y;
-  if (Math.sqrt(dx*dx + dy*dy) > 0.5) {
-    cueLine.style.left = cue.x + '%';
-    cueLine.style.top = cue.y + '%';
-    const angle = Math.atan2(dy, dx) * (180/Math.PI);
-    cueLine.style.width = Math.min(Math.sqrt(dx*dx+dy*dy) * 0.5, 35) + '%';
-    cueLine.style.transform = `rotate(${angle}deg)`;
-    cueLine.classList.add('show');
+  
+  cueDragState.charging = true;
+  cueDragState.lockX = pos.x;
+  cueDragState.lockY = pos.y;
+  state.aimX = pos.x;
+  state.aimY = pos.y;
+  state.phase = 'aim';
+  setPower(0);
+  setStatus('🔫 Drag to set power, release to shoot!');
+  render();
+});
+
+// Global mouse up — release to shoot
+document.addEventListener('mouseup', function(e) {
+  if (cueDragState.charging) {
+    cueDragState.charging = false;
+    if (state.power > 5) {
+      shoot();
+    } else {
+      setStatus('🎯 Move mouse to aim • Click + drag to shoot with power!');
+      render();
+    }
   }
 });
 
-// Touch
+// -----------------------------------------------------------
+// TOUCH EVENTS: Touch → aim + charge | Drag → power | Release → shoot
+// -----------------------------------------------------------
+
 ballContainer.addEventListener('touchstart', function(e) {
   if (state.gameOver || state.turn !== 'player') return;
   const pos = getTablePos(e);
+  
   if (state.ballInHand) {
     if (isOnTable(pos)) {
       let valid = true;
@@ -561,13 +673,42 @@ ballContainer.addEventListener('touchstart', function(e) {
     }
     return;
   }
-  if (state.phase === 'aim') {
-    if (!isOnTable(pos)) return;
-    state.aimX = pos.x; state.aimY = pos.y;
-    setStatus('🔫 Aim set! Adjust power, then tap Shoot!');
-    render();
-  }
+  
+  if (!isOnTable(pos)) return;
+  
+  // Start charging immediately on touch
+  cueDragState.charging = true;
+  cueDragState.lockX = pos.x;
+  cueDragState.lockY = pos.y;
+  state.aimX = pos.x;
+  state.aimY = pos.y;
+  state.phase = 'aim';
+  setPower(0);
+  setStatus('🔫 Drag to set power, release to shoot!');
+  render();
 }, {passive: true});
+
+ballContainer.addEventListener('touchmove', function(e) {
+  if (!cueDragState.charging) return;
+  const pos = getTablePos(e);
+  if (!isOnTable(pos)) return;
+  
+  const dx = pos.x - cueDragState.lockX;
+  const dy = pos.y - cueDragState.lockY;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  const power = Math.min(100, (dist / 25) * 100);
+  setPower(power);
+  render();
+}, {passive: true});
+
+ballContainer.addEventListener('touchend', function(e) {
+  if (cueDragState.charging) {
+    cueDragState.charging = false;
+    if (state.power > 5) {
+      shoot();
+    }
+  }
+});
 
 // ============================================================
 // POWER
@@ -616,7 +757,7 @@ function shoot() {
   state.aimX = null;
   state.pottedThisTurn = [];
   shootBtn.disabled = true;
-  cueLine.classList.remove('show');
+  cueStickWrapper.classList.remove('show');
 
   render();
   requestAnimationFrame(physicsLoop);
@@ -1010,7 +1151,7 @@ function aiTurn() {
   state.ballInHand = state.ballInHand || false;
   updateUI();
   render();
-  setStatus(state.ballInHand ? '🎱 Ball-in-hand! Cue ball place karo!' : '🎱 Your turn! Click cue ball to aim.');
+  setStatus(state.ballInHand ? '🎱 Ball-in-hand! Cue ball place karo!' : '🎱 Your turn! Move mouse to aim, click+drag to shoot!');
 }
 
 // ============================================================
@@ -1063,10 +1204,10 @@ function saveGameResult(win) {
   const result = {
     game: 'snooker',
     result: win ? 'win' : 'lose',
-    level: level || 'free',
-    fee: gameFee || 0,
-    payout: win ? (gamePayout || 0) : 0,
-    mode: mode || '1v1'
+    level: snLevel,
+    fee: snFee,
+    payout: win ? snPayout : 0,
+    mode: snMode
   };
   try {
     localStorage.setItem('pz_game_result', JSON.stringify(result));
@@ -1082,7 +1223,7 @@ function showGameOver(win, detail) {
   
   $('game-over-overlay').classList.add('show');
   $('game-over-title').textContent = win ? '🏆 YOU WIN!' : '💀 YOU LOSE';
-  $('game-over-sub').textContent = win ? 'Brilliant snooker! 🎉' + (gamePayout ? ` Won ₹${gamePayout}!` : '') : 'Better luck next frame!';
+  $('game-over-sub').textContent = win ? 'Brilliant snooker! 🎉' + (snPayout ? ` Won ₹${snPayout}!` : '') : 'Better luck next frame!';
   $('game-over-detail').textContent = detail || `Final score: ${state.playerScore} - ${state.oppScore}`;
 }
 
@@ -1112,13 +1253,7 @@ if (!soundEnabled) {
 
 console.log('🎯 Snooker — Full Game Loaded');
 
-// Read URL params
-const params = new URLSearchParams(window.location.search);
-const mode = params.get('mode');
-const level = params.get('level');
-const gameFee = parseInt(params.get('fee')) || 0;
-const gamePayout = parseInt(params.get('payout')) || 0;
-if (mode) console.log(`Game mode: ${mode}, Level: ${level}, Fee: ${gameFee}, Payout: ${gamePayout}`);
+
 </script>
 </body>
 </html>

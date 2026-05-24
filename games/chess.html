@@ -79,10 +79,10 @@
 </div>
 
 <div class="time-controls" id="time-controls">
-  <button class="time-btn active" onclick="setTime(5)">5 min</button>
-  <button class="time-btn" onclick="setTime(10)">10 min</button>
-  <button class="time-btn" onclick="setTime(15)">15 min</button>
-  <button class="time-btn" onclick="setTime(0)">∞ Unlimited</button>
+  <button class="time-btn active" onclick="setTime(5,this)">5 min</button>
+  <button class="time-btn" onclick="setTime(10,this)">10 min</button>
+  <button class="time-btn" onclick="setTime(15,this)">15 min</button>
+  <button class="time-btn" onclick="setTime(0,this)">∞ Unlimited</button>
 </div>
 
 <div class="top-bar">
@@ -144,10 +144,10 @@ let whiteTime, blackTime, timeControl = 5, timerInterval, flipped = false;
 let enPassantTarget = null; // {row, col} or null
 let castlingRights = {K:true,Q:true,k:true,q:true}; // K=Kingside white, Q=Queenside white, k/kingside black, q/queenside black
 
-function setTime(mins){
+function setTime(mins, el){
   timeControl = mins;
   document.querySelectorAll('.time-btn').forEach(b=>b.classList.remove('active'));
-  event.target.classList.add('active');
+  if (el) el.classList.add('active');
   initGame();
 }
 
@@ -157,6 +157,7 @@ function initGame(){
   selected = null;
   legalMoves = [];
   moveHistory = [];
+  moveLog = [];
   capturedWhite = [];
   capturedBlack = [];
   lastMove = null;
@@ -372,16 +373,83 @@ function simulateMove(b, fr, fc, tr, tc){
 // MAKE MOVE
 // ============================================================
 
+let moveLog = []; // Stores algebraic notation of moves: [{w:'e4', b:'e5'}, ...]
+
+function getSquareName(row, col) {
+  const file = 'abcdefgh'[col];
+  const rank = 8 - row;
+  return file + rank;
+}
+
+function getPieceSymbol(p) {
+  const t = type(p);
+  const map = {'K':'K','Q':'Q','R':'R','B':'B','N':'N','P':''};
+  return map[t] || '';
+}
+
+function getMoveNotation(fr, fc, tr, tc, promoPiece) {
+  const piece = board[fr][fc];
+  const captured = board[tr][tc];
+  const t = type(piece);
+  
+  // Castling
+  if (t === 'K' && Math.abs(tc - fc) === 2) {
+    return tc > fc ? 'O-O' : 'O-O-O';
+  }
+  
+  const pieceChar = getPieceSymbol(piece);
+  const captureChar = captured ? 'x' : '';
+  const toSquare = getSquareName(tr, tc);
+  const promo = promoPiece ? '=' + promoPiece.toUpperCase() : '';
+  
+  // Pawn captures need file
+  let fromFile = '';
+  if (t === 'P' && captured) {
+    fromFile = 'abcdefgh'[fc];
+  } else if (t === 'P' && enPassantTarget && tr === enPassantTarget.row && tc === enPassantTarget.col) {
+    fromFile = 'abcdefgh'[fc];
+  }
+  
+  // Disambiguation for non-pawns
+  if (t !== 'P' && t !== 'K') {
+    let ambiguity = false;
+    let useRank = false;
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        if ((r === fr && c === fc)) continue;
+        const p2 = board[r][c];
+        if (p2 && type(p2) === t && getColor(p2) === turn) {
+          const moves2 = getPseudoLegalMoves(r, c, board, enPassantTarget, castlingRights);
+          if (moves2.some(m => m[0] === tr && m[1] === tc)) {
+            ambiguity = true;
+            if (c === fc) useRank = true; // same file → use rank
+          }
+        }
+      }
+    }
+    if (ambiguity) {
+      fromFile = useRank ? '' + (8 - fr) : 'abcdefgh'[fc];
+    }
+  }
+  
+  const checkChar = ''; // Will be added after the move is made
+  return pieceChar + fromFile + captureChar + toSquare + promo;
+}
+
 function makeMove(fr, fc, tr, tc, promotionPiece=null){
   const piece=board[fr][fc];
   const captured=board[tr][tc];
   const t=type(piece);
   
+  // Generate notation before the move
+  const notation = getMoveNotation(fr, fc, tr, tc, promotionPiece);
+  
   // Save state for undo
   const snap={
     board:board.map(r=>[...r]), turn, enPassantTarget:enPassantTarget?{...enPassantTarget}:null,
     castlingRights:{...castlingRights}, moveHistory:[...moveHistory],
-    capturedWhite:[...capturedWhite], capturedBlack:[...capturedBlack], lastMove
+    capturedWhite:[...capturedWhite], capturedBlack:[...capturedBlack], lastMove,
+    moveLog:[...moveLog]
   };
   moveHistory.push(snap);
   
@@ -432,16 +500,38 @@ function makeMove(fr, fc, tr, tc, promotionPiece=null){
   
   lastMove={from:{row:fr,col:fc},to:{row:tr,col:tc}};
   
-  // Switch turn
+  // Switch turn first so we can check if opponent is in check
+  const movingColor = turn;
   turn=turn==='w'?'b':'w';
+  
+  // Add check/checkmate symbol to notation
+  let finalNotation = notation;
+  if (isInCheck(board, turn)) {
+    if (hasLegalMoves(board, turn)) {
+      finalNotation += '+';
+    } else {
+      finalNotation += '#';
+    }
+  }
+  
+  // Add to move log
+  if (movingColor === 'w') {
+    moveLog.push({w: finalNotation, b: ''});
+  } else {
+    if (moveLog.length > 0) {
+      moveLog[moveLog.length - 1].b = finalNotation;
+    } else {
+      moveLog.push({w: '...', b: finalNotation});
+    }
+  }
   
   renderBoard();
   renderStatus();
   updateMoveHistory();
   updateCaptured();
   
-  // Check if opponent is in check
-  if(isInCheck(board, turn)) {
+  // Play check sound
+  if (finalNotation.endsWith('+') || finalNotation.endsWith('#')) {
     setTimeout(() => playCheck(), 100);
   }
   
@@ -460,6 +550,7 @@ function undoMove(){
   capturedWhite=snap.capturedWhite;
   capturedBlack=snap.capturedBlack;
   lastMove=snap.lastMove;
+  moveLog=snap.moveLog||[];
   selected=null;legalMoves=[];
   gameOver=false;
   renderBoard();renderStatus();updateMoveHistory();updateCaptured();
@@ -711,12 +802,17 @@ function renderStatus(){
 
 function updateMoveHistory(){
   const el=document.getElementById('move-history');
-  const moves=[];
-  for(let i=0;i<moveHistory.length;i++){
-    // We need to track actual moves made, not just snapshots
+  if (moveLog.length === 0) {
+    el.innerHTML = '<span style="font-size:12px;color:var(--text2)">No moves yet</span>';
+    return;
   }
-  // Simplified: show count
-  el.innerHTML='<span style="font-size:12px;color:var(--text2)">'+moveHistory.length+' move'+(moveHistory.length!==1?'s':'')+' played</span>';
+  el.innerHTML = moveLog.map((m, i) => `
+    <div class="move-row">
+      <span class="move-num">${i+1}.</span>
+      <span class="move-w">${m.w}</span>
+      <span class="move-b">${m.b || ''}</span>
+    </div>
+  `).join('');
 }
 
 function updateCaptured(){
@@ -883,13 +979,6 @@ function playTimeUp() {
 // ============================================================
 // GAME RESULT — Save to localStorage for app.html to read
 // ============================================================
-
-// Read URL params
-const chessParams = new URLSearchParams(window.location.search);
-const chessMode = chessParams.get('mode') || '1v1';
-const chessLevel = chessParams.get('level') || 'free';
-const chessFee = parseInt(chessParams.get('fee')) || 0;
-const chessPayout = parseInt(chessParams.get('payout')) || 0;
 
 function saveGameResult(playerWon) {
   const result = {

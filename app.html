@@ -941,38 +941,38 @@ function selectLevel(level){
   
   // Show matchmaking briefly then redirect to game
   document.getElementById('mm-level').textContent = `${level.toUpperCase()} — ${level==='free'?'FREE':`₹${entry} Entry`}`;
-  document.getElementById('modal-matchmaking').classList.add('open');
-  
-  const gameUrls = { pool:'games/pool.html', snooker:'games/snooker.html', chess:'games/chess.html' };
-  const url = gameUrls[selectedGame];
-  
-  // Save game session so the game page can save results back
-  const session = {
-    userId: u.id,
-    game: selectedGame,
-    level: level,
-    fee: entry,
-    payout: payout,
-    mode: '1v1'
-  };
-  setData('pz_game_session', session);
-  
-  if(level!=='free'){
-    updateUser({balance: (u.balance||0) - entry});
-    addTransaction('match_entry', -entry, `${selectedGame} match entry`);
-  }
-  
-  // Simulate matchmaking briefly
-  let sec = 0;
-  const timer = setInterval(()=>{
-    sec++;
-    document.getElementById('mm-timer').textContent = `⏱️ ${sec}s`;
-    if(sec >= 3){
-      clearInterval(timer);
-      document.getElementById('modal-matchmaking').classList.remove('open');
-      window.location.href = url + `?mode=1v1&level=${level}&fee=${entry}&payout=${payout}`;
-    }
-  }, 1000);
+  document.getElementById('modal-matchmaking').classList.add('open');      const gameUrls = { pool:'games/pool.html', snooker:'games/snooker.html', chess:'games/chess.html' };
+      const url = gameUrls[selectedGame];
+      // Cache-busting: ensure latest game file is loaded
+      const cacheBuster = 'v=' + Date.now();
+      
+      // Save game session so the game page can save results back
+      const session = {
+        userId: u.id,
+        game: selectedGame,
+        level: level,
+        fee: entry,
+        payout: payout,
+        mode: '1v1'
+      };
+      setData('pz_game_session', session);
+      
+      if(level!=='free'){
+        updateUser({balance: (u.balance||0) - entry});
+        addTransaction('match_entry', -entry, `${selectedGame} match entry`);
+      }
+      
+      // Simulate matchmaking briefly
+      let sec = 0;
+      const timer = setInterval(()=>{
+        sec++;
+        document.getElementById('mm-timer').textContent = `⏱️ ${sec}s`;
+        if(sec >= 3){
+          clearInterval(timer);
+          document.getElementById('modal-matchmaking').classList.remove('open');
+          window.location.href = url + `?mode=1v1&level=${level}&fee=${entry}&payout=${payout}&${cacheBuster}`;
+        }
+      }, 1000);
 }
 
 function cancelMatchmaking(){
@@ -984,14 +984,16 @@ function startFreeMode(){
   const u = getCurrentUser();
   setData('pz_game_session', { userId: u.id, game: selectedGame, level: 'free', fee: 0, payout: 0, mode: 'free' });
   const gameUrls = { pool:'games/pool.html', snooker:'games/snooker.html', chess:'games/chess.html' };
-  window.location.href = gameUrls[selectedGame] + '?mode=free&level=free&fee=0&payout=0';
+  const cacheBuster = 'v=' + Date.now();
+  window.location.href = gameUrls[selectedGame] + '?mode=free&level=free&fee=0&payout=0&' + cacheBuster;
 }
 
 function startPracticeMode(){
   const u = getCurrentUser();
   setData('pz_game_session', { userId: u.id, game: selectedGame, level: 'practice', fee: 0, payout: 0, mode: 'practice' });
   const gameUrls = { pool:'games/pool.html', snooker:'games/snooker.html', chess:'games/chess.html' };
-  window.location.href = gameUrls[selectedGame] + '?mode=practice&level=practice&fee=0&payout=0';
+  const cacheBuster = 'v=' + Date.now();
+  window.location.href = gameUrls[selectedGame] + '?mode=practice&level=practice&fee=0&payout=0&' + cacheBuster;
 }
 
 function openFriendMatch(){showPage('friends');showToast('Select a friend to invite!')}
