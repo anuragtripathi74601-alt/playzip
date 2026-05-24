@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>PlayZip — Play & Earn Real Money</title>
+<meta name="theme-color" content="#0A0A0F">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{
+    --gold:#C9A84C;--gold-light:#F0C96A;--gold-dark:#8B6914;
+    --bg:#0A0A0F;--bg2:#12121A;--bg3:#1A1A26;--bg4:#222233;
+    --text:#F0EBD8;--text2:#8A8578;--text3:#5A5650;
+    --border:rgba(201,168,76,0.12);--border-hover:rgba(201,168,76,0.35);
+    --red:#E25C3A;--green:#3ABE7A;--blue:#5B99F0;--purple:#A78BFA;
+    --radius:10px;--radius-lg:16px;--radius-xl:24px;
+  }
+  html,body{height:100%;overflow:hidden}
+  body{
+    font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);
+    -webkit-font-smoothing:antialiased;
+  }
+  input,select,textarea,button{font-family:inherit;outline:none}
+  ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--gold-dark);border-radius:99px}
+
+  /* SPLASH */
+  #splash-screen{
+    position:fixed;inset:0;z-index:999;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:var(--bg);
+    transition:opacity 0.5s;
+  }
+  #splash-screen.hide{opacity:0;pointer-events:none}
+  .splash-logo{font-size:72px;margin-bottom:8px}
+  .splash-title{font-size:36px;font-weight:900;letter-spacing:-1px}
+  .splash-title span{background:linear-gradient(135deg,var(--gold-light),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .splash-sub{font-size:13px;color:var(--text2);margin-top:4px}
+  .splash-loader{margin-top:40px;width:120px;height:3px;background:var(--bg3);border-radius:99px;overflow:hidden}
+  .splash-loader-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--gold-dark),var(--gold),var(--gold-light));border-radius:99px;animation:loadBar 2s ease forwards}
+  @keyframes loadBar{to{width:100%}}
+
+  /* AUTH SCREEN */
+  #auth-screen{
+    position:fixed;inset:0;z-index:100;
+    display:none;align-items:center;justify-content:center;
+    background:var(--bg);padding:20px;
+  }
+  #auth-screen.show{display:flex}
+  .auth-box{
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius-xl);padding:36px 28px;
+    width:min(400px,100%);text-align:center;
+  }
+  .auth-emoji{font-size:48px;margin-bottom:8px}
+  .auth-title{font-size:22px;font-weight:800}
+  .auth-title span{color:var(--gold)}
+  .auth-sub{font-size:12px;color:var(--text2);margin:6px 0 24px}
+  .auth-input{
+    width:100%;padding:14px 16px;
+    background:var(--bg3);border:1px solid var(--border);
+    border-radius:var(--radius);color:var(--text);
+    font-size:15px;margin-bottom:10px;text-align:center;
+    transition:border-color 0.2s;
+  }
+  .auth-input:focus{border-color:var(--gold)}
+  .auth-btn{
+    width:100%;padding:14px;border:none;border-radius:var(--radius);
+    background:linear-gradient(135deg,var(--gold-light),var(--gold));
+    color:#000;font-size:15px;font-weight:700;cursor:pointer;
+    transition:transform 0.15s;margin-top:4px;
+  }
+  .auth-btn:active{transform:scale(0.98)}
+  .auth-btn:disabled{opacity:0.5;cursor:not-allowed}
+  .auth-link{font-size:12px;color:var(--text2);margin-top:14px;cursor:pointer}
+  .auth-link span{color:var(--gold);font-weight:600}
+  .auth-error{color:var(--red);font-size:12px;margin-top:8px;display:none}
+
+  /* MAIN APP */
+  #app{display:none;height:100vh;flex-direction:column}
+  #app.show{display:flex}
+
+  /* TOP BAR */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 16px;background:var(--bg2);
+    border-bottom:1px solid var(--border);
+    flex-shrink:0;
+  }
+  .topbar-left{display:flex;align-items:center;gap:8px}
+  .topbar-logo{font-size:18px;font-weight:800}
+  .topbar-logo span{color:var(--gold)}
+  .topbar-coins{
+    display:flex;align-items:center;gap:4px;
+    background:rgba(201,168,76,0.1);
+    padding:4px 12px;border-radius:99px;
+    font-size:13px;font-weight:700;color:var(--gold);
+  }
+  .topbar-avatar{
+    width:34px;height:34px;border-radius:50%;
+    background:linear-gradient(135deg,var(--gold-dark),var(--gold));
+    display:flex;align-items:center;justify-content:center;
+    font-size:14px;font-weight:700;color:#000;cursor:pointer;
+  }
+
+  /* BOTTOM NAV */
+  .bottom-nav{
+    display:flex;background:var(--bg2);border-top:1px solid var(--border);
+    flex-shrink:0;
+  }
+  .nav-tab{
+    flex:1;text-align:center;padding:8px 4px 10px;
+    cursor:pointer;color:var(--text3);font-size:10px;font-weight:500;
+    transition:color 0.15s;position:relative;
+  }
+  .nav-tab.active{color:var(--gold)}
+  .nav-tab::before{
+    content:'';position:absolute;top:-1px;left:50%;transform:translateX(-50%);
+    width:0;height:2px;background:var(--gold);border-radius:0 0 2px 2px;
+    transition:width 0.2s;
+  }
+  .nav-tab.active::before{width:40px}
+  .nav-tab-icon{font-size:22px;display:block;margin-bottom:1px}
+  .nav-tab-label{font-size:10px;text-transform:uppercase;letter-spacing:0.5px}
+
+  /* PAGES */
+  .page-container{flex:1;overflow-y:auto;padding:16px}
+  .page{display:none;animation:fadeIn 0.25s}
+  .page.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+  /* HOME */
+  .greeting{font-size:24px;font-weight:700;margin-bottom:4px}
+  .greeting-sub{font-size:12px;color:var(--text2);margin-bottom:20px}
+  .banner-ad{
+    background:linear-gradient(135deg,var(--gold-dark),var(--gold));
+    border-radius:var(--radius-lg);padding:24px 20px;margin-bottom:20px;
+    position:relative;overflow:hidden;
+  }
+  .banner-ad::before{
+    content:'📢';position:absolute;right:16px;top:50%;transform:translateY(-50%);
+    font-size:48px;opacity:0.15;
+  }
+  .banner-ad h3{font-size:16px;font-weight:700;color:#000;margin-bottom:2px}
+  .banner-ad p{font-size:12px;color:rgba(0,0,0,0.7)}
+  .banner-ad .btn-sm{margin-top:8px;background:rgba(0,0,0,0.2);color:#000;border:none;padding:6px 16px;border-radius:99px;font-size:12px;font-weight:600;cursor:pointer}
+
+  .section-title{font-size:16px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+  .section-title span{color:var(--text2);font-size:12px;font-weight:400}
+
+  .game-cards{display:grid;gap:10px;margin-bottom:20px}
+  .game-card{
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius-lg);padding:20px;
+    cursor:pointer;position:relative;overflow:hidden;
+    transition:border-color 0.2s;
+  }
+  .game-card:active{transform:scale(0.99)}
+  .game-card:hover{border-color:var(--border-hover)}
+  .game-card-inner{display:flex;align-items:center;gap:16px}
+  .game-icon{font-size:48px;flex-shrink:0}
+  .game-info{flex:1}
+  .game-name{font-size:18px;font-weight:700}
+  .game-type{font-size:11px;color:var(--text2);margin-top:2px}
+  .game-status{font-size:11px;color:var(--green);margin-top:4px}
+  .game-arrow{font-size:20px;color:var(--text3)}
+  .game-card-bg{
+    position:absolute;top:-20px;right:-20px;
+    width:100px;height:100px;border-radius:50%;
+    opacity:0.05;
+  }
+  .game-card.pool .game-card-bg{background:var(--blue)}
+  .game-card.snooker .game-card-bg{background:var(--green)}
+  .game-card.chess .game-card-bg{background:var(--purple)}
+
+  /* GAME LOBBY PAGE */
+  .lobby-header{margin-bottom:16px;text-align:center}
+  .lobby-game-icon{font-size:48px;margin-bottom:4px}
+  .lobby-game-name{font-size:22px;font-weight:800}
+  .lobby-game-desc{font-size:12px;color:var(--text2);margin-top:2px}
+  .mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+  .mode-card{
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius-lg);padding:20px 16px;text-align:center;
+    cursor:pointer;transition:border-color 0.2s;
+  }
+  .mode-card:active{transform:scale(0.97)}
+  .mode-card:hover{border-color:var(--border-hover)}
+  .mode-icon{font-size:28px;margin-bottom:6px}
+  .mode-name{font-size:14px;font-weight:600}
+  .mode-desc{font-size:10px;color:var(--text2);margin-top:2px}
+
+  .level-list{display:grid;gap:8px}
+  .level-card{
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius);padding:14px 16px;
+    display:flex;align-items:center;gap:12px;cursor:pointer;
+    transition:border-color 0.2s;
+  }
+  .level-card:active{transform:scale(0.99)}
+  .level-card:hover{border-color:var(--border-hover)}
+  .level-badge{
+    padding:4px 10px;border-radius:6px;
+    font-size:10px;font-weight:700;text-transform:uppercase;
+    flex-shrink:0;
+  }
+  .level-free{background:rgba(201,168,76,0.15);color:var(--gold)}
+  .level-starter{background:rgba(138,133,120,0.15);color:var(--text2)}
+  .level-standard{background:rgba(58,190,122,0.15);color:var(--green)}
+  .level-pro{background:rgba(91,153,240,0.15);color:var(--blue)}
+  .level-advanced{background:rgba(226,92,58,0.15);color:var(--red)}
+  .level-elite{background:rgba(167,139,186,0.15);color:var(--purple)}
+  .level-info{flex:1}
+  .level-name{font-size:14px;font-weight:600}
+  .level-fee{font-size:11px;color:var(--text2);margin-top:2px}
+  .level-prize{font-size:13px;font-weight:700;color:var(--gold)}
+
+  /* WALLET */
+  .wallet-card{
+    background:linear-gradient(135deg,var(--bg2),#1a1a2e);
+    border:1px solid var(--border);border-radius:var(--radius-xl);
+    padding:28px 20px;text-align:center;margin-bottom:16px;
+    position:relative;overflow:hidden;
+  }
+  .wallet-card::before{
+    content:'';position:absolute;top:-50%;left:-50%;
+    width:200%;height:200%;
+    background:radial-gradient(ellipse at 50% 0%,rgba(201,168,76,0.06),transparent 60%);
+  }
+  .wallet-label{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:2px}
+  .wallet-balance{font-size:42px;font-weight:900;margin:6px 0;font-family:'JetBrains Mono',monospace;letter-spacing:-2px}
+  .wallet-balance span{background:linear-gradient(135deg,var(--gold-light),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .wallet-locked{font-size:11px;color:var(--text3)}
+  .wallet-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px;position:relative;z-index:1}
+  .wallet-btn{
+    padding:12px;border-radius:var(--radius);font-size:14px;
+    font-weight:700;cursor:pointer;border:none;
+    transition:transform 0.15s;
+  }
+  .wallet-btn:active{transform:scale(0.97)}
+  .wallet-btn-deposit{background:linear-gradient(135deg,var(--gold-light),var(--gold));color:#000}
+  .wallet-btn-withdraw{background:var(--bg3);color:var(--text);border:1px solid var(--border)}
+
+  .txn-list{display:grid;gap:6px}
+  .txn-item{
+    display:flex;align-items:center;gap:12px;
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius);padding:12px 14px;
+  }
+  .txn-icon{font-size:20px;flex-shrink:0}
+  .txn-info{flex:1}
+  .txn-title{font-size:13px;font-weight:500}
+  .txn-date{font-size:10px;color:var(--text2);margin-top:1px}
+  .txn-amount{font-size:14px;font-weight:700;font-family:'JetBrains Mono',monospace}
+  .txn-amount.positive{color:var(--green)}
+  .txn-amount.negative{color:var(--red)}
+
+  /* FRIENDS */
+  .friend-search{
+    width:100%;padding:12px 14px;
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius);color:var(--text);
+    font-size:14px;margin-bottom:12px;
+  }
+  .friend-search:focus{border-color:var(--gold)}
+  .friend-item{
+    display:flex;align-items:center;gap:12px;
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius);padding:12px 14px;margin-bottom:8px;
+  }
+  .friend-av{
+    width:40px;height:40px;border-radius:50%;
+    background:rgba(201,168,76,0.1);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px;flex-shrink:0;
+  }
+  .friend-info{flex:1}
+  .friend-name{font-size:14px;font-weight:600}
+  .friend-sub{font-size:11px;color:var(--text2)}
+  .friend-status{font-size:10px;padding:3px 8px;border-radius:99px;font-weight:600}
+
+  /* MATCH HISTORY */
+  .match-item{
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius);padding:14px;margin-bottom:8px;
+  }
+  .match-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  .match-game{font-size:13px;font-weight:600}
+  .match-result{
+    padding:2px 10px;border-radius:99px;font-size:11px;font-weight:600;
+  }
+  .match-result.win{background:rgba(58,190,122,0.12);color:var(--green)}
+  .match-result.lose{background:rgba(226,92,58,0.12);color:var(--red)}
+  .match-bottom{display:flex;justify-content:space-between;font-size:11px;color:var(--text2)}
+
+  /* PROFILE */
+  .profile-header{
+    text-align:center;padding:20px;margin-bottom:16px;
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius-xl);
+  }
+  .profile-av{
+    width:64px;height:64px;border-radius:50%;
+    background:linear-gradient(135deg,var(--gold-dark),var(--gold));
+    display:flex;align-items:center;justify-content:center;
+    margin:0 auto 10px;font-size:28px;font-weight:800;color:#000;
+  }
+  .profile-name{font-size:18px;font-weight:700}
+  .profile-id{font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-top:2px}
+  .profile-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px}
+  .profile-stat{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center}
+  .profile-stat-val{font-size:20px;font-weight:800;color:var(--gold)}
+  .profile-stat-lbl{font-size:10px;color:var(--text2);margin-top:2px;text-transform:uppercase}
+  .profile-info{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px}
+  .profile-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px}
+  .profile-row:last-child{border-bottom:none}
+  .profile-lbl{color:var(--text2)}
+  .profile-val{font-weight:500}
+
+  /* MODAL */
+  .modal-overlay{
+    display:none;position:fixed;inset:0;z-index:200;
+    background:rgba(0,0,0,0.6);align-items:flex-end;justify-content:center;
+    padding:0;
+  }
+  .modal-overlay.open{display:flex}
+  .modal-overlay.center{align-items:center}
+  .modal{
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius-xl) var(--radius-xl) 0 0;
+    padding:24px 20px 32px;
+    width:100%;max-width:500px;max-height:85vh;overflow-y:auto;
+    animation:slideUp 0.3s;
+  }
+  @keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
+  .modal.center{border-radius:var(--radius-xl);width:min(420px,92vw);margin:auto}
+  .modal-handle{width:36px;height:4px;background:var(--bg4);border-radius:99px;margin:0 auto 16px}
+  .modal-title{font-size:18px;font-weight:700;margin-bottom:4px}
+  .modal-sub{font-size:12px;color:var(--text2);margin-bottom:16px}
+  .modal-actions{display:flex;gap:8px;margin-top:16px}
+  .modal-actions .btn{flex:1}
+
+  .btn{
+    padding:12px 20px;border-radius:var(--radius);font-size:14px;
+    font-weight:600;cursor:pointer;border:none;text-align:center;
+    transition:transform 0.15s;
+  }
+  .btn:active{transform:scale(0.97)}
+  .btn-gold{background:linear-gradient(135deg,var(--gold-light),var(--gold));color:#000}
+  .btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+  .btn-red{background:rgba(226,92,58,0.15);color:var(--red);border:1px solid rgba(226,92,58,0.3)}
+  .btn-sm{padding:8px 16px;font-size:12px}
+
+  .gold{color:var(--gold)}
+  .green{color:var(--green)}
+  .red{color:var(--red)}
+  .mono{font-family:'JetBrains Mono',monospace}
+  .text2{color:var(--text2)}
+  .mb-8{margin-bottom:8px}
+  .mb-12{margin-bottom:12px}
+  .mb-16{margin-bottom:16px}
+  .gap-8{display:flex;gap:8px}
+
+  @media(min-width:500px){
+    .page-container{padding:20px;max-width:480px;margin:0 auto}
+    .game-cards{grid-template-columns:1fr}
+  }
+
+  .search-highlight{border-color:var(--gold)!important}
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash-screen">
+  <div class="splash-logo">🎮</div>
+  <div class="splash-title"><span>PlayZip</span></div>
+  <div class="splash-sub">Play & Earn Real Money</div>
+  <div class="splash-loader"><div class="splash-loader-bar"></div></div>
+</div>
+
+<!-- AUTH -->
+<div id="auth-screen" class="show">
+  <div class="auth-box" id="auth-login">
+    <div class="auth-emoji">🎮</div>
+    <div class="auth-title">Play<span>Zip</span></div>
+    <div class="auth-sub">Apna mobile number dalo aur OTP verify karo</div>
+    <input class="auth-input" id="auth-phone" placeholder="Mobile Number" maxlength="10" inputmode="numeric" pattern="[0-9]*">
+    <button class="auth-btn" id="auth-btn" onclick="sendOTP()">Send OTP</button>
+    <div class="auth-error" id="auth-error"></div>
+    <div class="auth-link">Already have an account? <span>Login</span></div>
+  </div>
+  <div class="auth-box" id="auth-otp" style="display:none">
+    <div class="auth-emoji">🔐</div>
+    <div class="auth-title">Verify <span>OTP</span></div>
+    <div class="auth-sub" id="otp-sub">OTP sent to 9876543210</div>
+    <input class="auth-input" id="auth-otp-input" placeholder="Enter OTP" maxlength="6" inputmode="numeric" pattern="[0-9]*" style="font-size:24px;letter-spacing:8px">
+    <button class="auth-btn" id="otp-btn" onclick="verifyOTP()">Verify & Play</button>
+    <div class="auth-error" id="otp-error"></div>
+    <div class="auth-link" onclick="showAuthLogin()">← Wrong number? Change karein</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-logo">Play<span>Zip</span></span>
+    </div>
+    <div class="topbar-coins" onclick="showPage('wallet')">
+      🪙 <span id="topbar-balance">0</span>
+    </div>
+    <div class="topbar-avatar" onclick="showPage('profile')" id="topbar-av">R</div>
+  </div>
+
+  <div class="page-container">
+    <!-- HOME -->
+    <div class="page active" id="page-home">
+      <div class="greeting" id="greeting">Namaste 👋</div>
+      <div class="greeting-sub">Khelo, jeeto aur real money earn karo!</div>
+      
+      <div class="banner-ad">
+        <h3>🎯 Double Your Money!</h3>
+        <p>Har match mein 2X winner prize — STARTER se ELITE tak</p>
+        <button class="btn-sm" onclick="showPage('wallet')">Deposit Now →</button>
+      </div>
+
+      <div class="section-title">🎮 Choose Your Game <span>3 games</span></div>
+      <div class="game-cards">
+        <div class="game-card pool" onclick="openGameLobby('pool')">
+          <div class="game-card-bg"></div>
+          <div class="game-card-inner">
+            <div class="game-icon">🎱</div>
+            <div class="game-info">
+              <div class="game-name">Pool (8-Ball)</div>
+              <div class="game-type">Classic 8-Ball Pool</div>
+              <div class="game-status">🟢 24 players online</div>
+            </div>
+            <div class="game-arrow">›</div>
+          </div>
+        </div>
+        <div class="game-card snooker" onclick="openGameLobby('snooker')">
+          <div class="game-card-bg"></div>
+          <div class="game-card-inner">
+            <div class="game-icon">🎯</div>
+            <div class="game-info">
+              <div class="game-name">Snooker</div>
+              <div class="game-type">Professional Snooker</div>
+              <div class="game-status">🟢 18 players online</div>
+            </div>
+            <div class="game-arrow">›</div>
+          </div>
+        </div>
+        <div class="game-card chess" onclick="openGameLobby('chess')">
+          <div class="game-card-bg"></div>
+          <div class="game-card-inner">
+            <div class="game-icon">♟️</div>
+            <div class="game-info">
+              <div class="game-name">Chess</div>
+              <div class="game-type">Time-based Chess (5/10/15/unlimited)</div>
+              <div class="game-status">🟢 36 players online</div>
+            </div>
+            <div class="game-arrow">›</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">⚡ Quick Stats</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:16px">
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center">
+          <div style="font-size:20px;font-weight:700;color:var(--gold)">₹1,200</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:2px">Won This Week</div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center">
+          <div style="font-size:20px;font-weight:700;color:var(--gold)">12</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:2px">Matches Played</div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center">
+          <div style="font-size:20px;font-weight:700;color:var(--gold)">8</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:2px">Wins</div>
+        </div>
+      </div>
+
+      <div class="section-title">🏆 Leaderboard</div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--gold);font-weight:700;width:24px">🥇</span>
+          <span style="flex:1;font-weight:600">Amit Singh</span>
+          <span style="color:var(--gold);font-weight:600">₹4,500</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--text2);font-weight:700;width:24px">🥈</span>
+          <span style="flex:1;font-weight:600">Priya Verma</span>
+          <span style="color:var(--gold);font-weight:600">₹3,200</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0">
+          <span style="color:var(--text3);font-weight:700;width:24px">🥉</span>
+          <span style="flex:1;font-weight:600">Rahul Sharma</span>
+          <span style="color:var(--gold);font-weight:600">₹2,800</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- GAME LOBBY -->
+    <div class="page" id="page-lobby">
+      <div class="lobby-header">
+        <div class="lobby-game-icon" id="lobby-icon">🎱</div>
+        <div class="lobby-game-name" id="lobby-name">Pool</div>
+        <div class="lobby-game-desc" id="lobby-desc">Choose your mode and level</div>
+      </div>
+      <div class="section-title">🎯 Game Mode</div>
+      <div class="mode-grid" id="mode-grid">
+        <div class="mode-card" onclick="startMatchmaking('1v1')">
+          <div class="mode-icon">⚔️</div>
+          <div class="mode-name">1v1 Live</div>
+          <div class="mode-desc">Real money match</div>
+        </div>
+        <div class="mode-card" onclick="openFriendMatch()">
+          <div class="mode-icon">👥</div>
+          <div class="mode-name">Friend Match</div>
+          <div class="mode-desc">Invite a friend</div>
+        </div>
+        <div class="mode-card" onclick="startFreeMode()">
+          <div class="mode-icon">🎮</div>
+          <div class="mode-name">Free Play</div>
+          <div class="mode-desc">No entry fee</div>
+        </div>
+        <div class="mode-card" onclick="startPracticeMode()">
+          <div class="mode-icon">🏋️</div>
+          <div class="mode-name">Practice</div>
+          <div class="mode-desc">Vs Computer</div>
+        </div>
+      </div>
+      <div class="section-title">💰 Select Level</div>
+      <div class="level-list" id="level-list"></div>
+    </div>
+
+    <!-- WALLET -->
+    <div class="page" id="page-wallet">
+      <div class="wallet-card">
+        <div class="wallet-label">Available Balance</div>
+        <div class="wallet-balance"><span id="wallet-balance">₹0</span></div>
+        <div class="wallet-locked">🔒 Locked: ₹0</div>
+        <div class="wallet-actions">
+          <button class="wallet-btn wallet-btn-deposit" onclick="openDepositModal()">💰 Deposit</button>
+          <button class="wallet-btn wallet-btn-withdraw" onclick="openWithdrawModal()">📤 Withdraw</button>
+        </div>
+      </div>
+      <div class="section-title">💳 Recent Transactions</div>
+      <div class="txn-list" id="txn-list">
+        <div style="text-align:center;padding:24px;color:var(--text2);font-size:13px">Loading transactions...</div>
+      </div>
+      <div style="margin-top:12px;padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;color:var(--text2);line-height:1.6">
+        📌 <b>Reward Coins:</b> Ad dekho aur 1-5 coins free pao!<br>
+        📌 <b>Withdrawal:</b> Minimum ₹200, 24 ghante mein transfer
+      </div>
+    </div>
+
+    <!-- FRIENDS -->
+    <div class="page" id="page-friends">
+      <div class="section-title">👥 My Friends</div>
+      <input class="friend-search" id="friend-search" placeholder="🔍 Friend search karo ya ID dalo..." oninput="renderFriends()">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="btn btn-gold btn-sm" style="flex:1;padding:10px" onclick="addFriend()">+ Add Friend</button>
+        <button class="btn btn-outline btn-sm" style="flex:1;padding:10px" onclick="showToast('Share your ID: PZ-' + getCurrentUser().id)">📤 Share ID</button>
+      </div>
+      <div id="friend-list"></div>
+    </div>
+
+    <!-- MATCH HISTORY -->
+    <div class="page" id="page-history">
+      <div class="section-title">📋 Match History</div>
+      <div id="history-list"></div>
+    </div>
+
+    <!-- PROFILE -->
+    <div class="page" id="page-profile">
+      <div class="profile-header">
+        <div class="profile-av" id="profile-av">R</div>
+        <div class="profile-name" id="profile-name">Rahul Sharma</div>
+        <div class="profile-id" id="profile-id">PZ-1001</div>
+      </div>
+      <div class="profile-stats">
+        <div class="profile-stat">
+          <div class="profile-stat-val" id="stat-matches">47</div>
+          <div class="profile-stat-lbl">Matches</div>
+        </div>
+        <div class="profile-stat">
+          <div class="profile-stat-val" id="stat-wins">32</div>
+          <div class="profile-stat-lbl">Wins</div>
+        </div>
+        <div class="profile-stat">
+          <div class="profile-stat-val" id="stat-winrate">68%</div>
+          <div class="profile-stat-lbl">Win Rate</div>
+        </div>
+      </div>
+      <div class="profile-info">
+        <div class="profile-row">
+          <span class="profile-lbl">Phone</span>
+          <span class="profile-val" id="p-phone">9876543210</span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-lbl">UPI ID</span>
+          <span class="profile-val" id="p-upi">rahul@paytm</span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-lbl">KYC Status</span>
+          <span class="badge badge-green" id="p-kyc">✅ Verified</span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-lbl">Member Since</span>
+          <span class="profile-val" id="p-join">Apr 15, 2026</span>
+        </div>
+      </div>
+      <button class="btn btn-outline" style="width:100%;margin-top:16px" onclick="logoutUser()">🚪 Logout</button>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <div class="nav-tab active" onclick="showPage('home')">
+      <span class="nav-tab-icon">🏠</span>
+      <span class="nav-tab-label">Home</span>
+    </div>
+    <div class="nav-tab" onclick="showPage('wallet')">
+      <span class="nav-tab-icon">💰</span>
+      <span class="nav-tab-label">Wallet</span>
+    </div>
+    <div class="nav-tab" onclick="showPage('friends')">
+      <span class="nav-tab-icon">👥</span>
+      <span class="nav-tab-label">Friends</span>
+    </div>
+    <div class="nav-tab" onclick="showPage('history')">
+      <span class="nav-tab-icon">📋</span>
+      <span class="nav-tab-label">History</span>
+    </div>
+    <div class="nav-tab" onclick="showPage('profile')">
+      <span class="nav-tab-icon">👤</span>
+      <span class="nav-tab-label">Profile</span>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay center" id="modal-matchmaking">
+  <div class="modal center" style="text-align:center">
+    <div style="font-size:48px;margin-bottom:12px">🔍</div>
+    <div class="modal-title">Finding Opponent...</div>
+    <div class="modal-sub" id="mm-level">STARTER — ₹50 Entry</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:24px;margin:24px 0">
+      <div style="text-align:center">
+        <div style="width:48px;height:48px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;margin:0 auto 6px;font-size:20px">👤</div>
+        <div style="font-size:12px;font-weight:600">You</div>
+      </div>
+      <div style="font-size:24px;color:var(--text3)">VS</div>
+      <div style="text-align:center">
+        <div style="width:48px;height:48px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;margin:0 auto 6px;font-size:20px">❓</div>
+        <div style="font-size:12px;font-weight:600">Searching...</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:16px">
+      <span class="gold" id="mm-timer">⏱️ 0s</span> elapsed
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="cancelMatchmaking()" style="width:100%">Cancel</button>
+  </div>
+</div>
+
+<div class="modal-overlay center" id="modal-deposit">
+  <div class="modal center">
+    <button style="position:absolute;top:12px;right:16px;background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer" onclick="closeModal('modal-deposit')">✕</button>
+    <div class="modal-title">💰 Deposit Coins</div>
+    <div class="modal-sub">Re 1 = 1 Coin. Instant credit!</div>
+    <div id="deposit-amounts" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px"></div>
+    <div class="modal-title" style="font-size:22px;text-align:center;margin:8px 0">
+      ₹<span id="deposit-amount">100</span>
+    </div>
+    <button class="btn btn-gold" style="width:100%" onclick="processDeposit()">Pay ₹<span id="deposit-pay">100</span> via UPI</button>
+    <div style="font-size:11px;color:var(--text2);text-align:center;margin-top:8px">Powered by Razorpay • Secure Payment</div>
+  </div>
+</div>
+
+<div class="modal-overlay center" id="modal-withdraw">
+  <div class="modal center">
+    <button style="position:absolute;top:12px;right:16px;background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer" onclick="closeModal('modal-withdraw')">✕</button>
+    <div class="modal-title">📤 Withdraw</div>
+    <div class="modal-sub">Minimum ₹200 • 24 ghante mein transfer</div>
+    <div class="form-group mb-12">
+      <label class="form-label">Amount (₹)</label>
+      <input class="auth-input" id="withdraw-amount" placeholder="200" value="200" type="number" oninput="updateWithdrawInfo()">
+    </div>
+    <div class="form-group mb-12">
+      <label class="form-label">UPI ID</label>
+      <input class="auth-input" id="withdraw-upi" placeholder="yourname@paytm">
+    </div>
+    <div style="background:var(--bg3);border-radius:var(--radius);padding:12px;margin-bottom:12px;font-size:12px;color:var(--text2)">
+      You will receive: <span class="gold" id="withdraw-net" style="font-weight:600">₹200</span><br>
+      (No processing fee)
+    </div>
+    <button class="btn btn-gold" style="width:100%" onclick="processWithdraw()">Withdraw Request</button>
+  </div>
+</div>
+
+<div class="modal-overlay center" id="modal-success">
+  <div class="modal center" style="text-align:center">
+    <div style="font-size:56px;margin-bottom:8px" id="success-icon">✅</div>
+    <div class="modal-title" id="success-title">Success!</div>
+    <div class="modal-sub" id="success-sub">Transaction completed</div>
+    <button class="btn btn-gold" style="width:100%;margin-top:8px" onclick="closeModal('modal-success')">Done</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// DATA & STATE
+// ============================================================
+const DB = {
+  users: 'pz_users',
+  currentUser: 'pz_current_user',
+  txnPrefix: 'pz_txns_',
+  historyPrefix: 'pz_history_',
+  friendPrefix: 'pz_friends_'
+};
+
+function getData(key){try{return JSON.parse(localStorage.getItem(key)||'null')}catch(e){return null}}
+function setData(key,val){localStorage.setItem(key,JSON.stringify(val))}
+
+// ============================================================
+// SPLASH & AUTH
+// ============================================================
+setTimeout(()=>{
+  document.getElementById('splash-screen').classList.add('hide');
+  // Check if already logged in
+  const cu = getData(DB.currentUser);
+  if(cu){
+    loginUser(cu);
+  } else {
+    document.getElementById('auth-screen').classList.add('show');
+    document.getElementById('auth-login').style.display='block';
+    document.getElementById('auth-otp').style.display='none';
+  }
+}, 2200);
+
+function showAuthLogin(){
+  document.getElementById('auth-login').style.display='block';
+  document.getElementById('auth-otp').style.display='none';
+  document.getElementById('auth-error').style.display='none';
+}
+
+function sendOTP(){
+  const phone = document.getElementById('auth-phone').value.trim();
+  if(phone.length<10){showAuthError('Sahi mobile number dalo (10 digits)');return}
+  document.getElementById('auth-login').style.display='none';
+  document.getElementById('auth-otp').style.display='block';
+  document.getElementById('otp-sub').textContent = `OTP sent to ${phone}`;
+  document.getElementById('auth-phone').value = phone;
+  document.getElementById('otp-error').style.display='none';
+  // In real app, send OTP via backend. Here we auto-fill for demo
+  document.getElementById('auth-otp-input').value = '123456';
+}
+
+function verifyOTP(){
+  const otp = document.getElementById('auth-otp-input').value.trim();
+  if(otp.length<4){showOTPError('Please enter the OTP');return}
+  
+  const phone = document.getElementById('auth-phone').value;
+  const users = getData(DB.users) || [];
+  let user = users.find(u=>u.phone===phone);
+  
+  if(!user){
+    // New user
+    user = {
+      id: 'U-' + (1000 + users.length + 1),
+      name: 'Player ' + phone.slice(-4),
+      phone: phone,
+      balance: 50, // Welcome bonus
+      matches: 0,
+      wins: 0,
+      status: 'active',
+      kyc: 'pending',
+      upi: '',
+      joinDate: new Date().toISOString().split('T')[0]
+    };
+    users.push(user);
+    setData(DB.users, users);
+  }
+  
+  loginUser(user);
+}
+
+function showAuthError(msg){
+  const el=document.getElementById('auth-error');
+  el.textContent=msg;el.style.display='block';
+}
+function showOTPError(msg){
+  const el=document.getElementById('otp-error');
+  el.textContent=msg;el.style.display='block';
+}
+
+// ============================================================
+// LOGIN / LOGOUT
+// ============================================================
+function loginUser(user){
+  setData(DB.currentUser, user);
+  document.getElementById('auth-screen').classList.remove('show');
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('app').classList.add('show');
+  initApp(user);
+}
+
+function logoutUser(){
+  if(!confirm('Logout karna chahte hain?')) return;
+  localStorage.removeItem(DB.currentUser);
+  document.getElementById('app').classList.remove('show');
+  document.getElementById('auth-screen').style.display='flex';
+  document.getElementById('auth-screen').classList.add('show');
+  showAuthLogin();
+}
+
+// ============================================================
+// APP INIT
+// ============================================================
+let currentUser = null;
+
+function initApp(user){
+  currentUser = user;
+  updateTopbar();
+  renderHome();
+  renderWallet();
+  renderFriends();
+  renderHistory();
+  renderProfile();
+  showPage('home');
+  // Check if returning from a game with a result
+  checkPendingGameResult();
+}
+
+function getCurrentUser(){
+  if(currentUser) return currentUser;
+  return getData(DB.currentUser);
+}
+
+function updateUser(data){
+  const users = getData(DB.users) || [];
+  const idx = users.findIndex(u=>u.id===currentUser.id);
+  if(idx>=0){
+    Object.assign(users[idx], data);
+    setData(DB.users, users);
+    Object.assign(currentUser, data);
+    setData(DB.currentUser, currentUser);
+  }
+  updateTopbar();
+}
+
+function updateTopbar(){
+  const u = getCurrentUser();
+  document.getElementById('topbar-balance').textContent = u.balance||0;
+  document.getElementById('topbar-av').textContent = (u.name||'U')[0].toUpperCase();
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function showPage(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(t=>{
+    t.classList.toggle('active', t.querySelector('.nav-tab-label').textContent.toLowerCase()===page||
+      (page==='lobby'&&['home'].includes(t.querySelector('.nav-tab-label').textContent.toLowerCase())));
+  });
+  if(page==='wallet') renderWallet();
+  if(page==='friends') renderFriends();
+  if(page==='history') renderHistory();
+  if(page==='profile') renderProfile();
+}
+
+// ============================================================
+// HOME
+// ============================================================
+function renderHome(){
+  const u = getCurrentUser();
+  const h = (new Date().getHours());
+  const greet = h<12?'Good Morning':h<17?'Good Afternoon':'Good Evening';
+  document.getElementById('greeting').textContent = `${greet} 👋`;
+}
+
+// ============================================================
+// GAME LOBBY
+// ============================================================
+const GAME_INFO = {
+  pool: {icon:'🎱',name:'Pool (8-Ball)',desc:'Classic 8-Ball Pool — Pocket all your balls first!'},
+  snooker: {icon:'🎯',name:'Snooker',desc:'Professional Snooker — Red, Color, Repeat!'},
+  chess: {icon:'♟️',name:'Chess',desc:'Timed Chess — Checkmate your opponent!'}
+};
+
+let selectedGame = 'pool';
+
+function openGameLobby(game){
+  selectedGame = game;
+  const info = GAME_INFO[game];
+  document.getElementById('lobby-icon').textContent = info.icon;
+  document.getElementById('lobby-name').textContent = info.name;
+  document.getElementById('lobby-desc').textContent = info.desc;
+  
+  const config = getData('pz_game_config');
+  const levels = config?.levels || {
+    free:{fee:0,winner:0,cut:0,active:true},
+    starter:{fee:50,pool:100,winner:80,cut:20,active:true},
+    standard:{fee:100,pool:200,winner:170,cut:30,active:true},
+    pro:{fee:200,pool:400,winner:350,cut:50,active:true},
+    advanced:{fee:500,pool:1000,winner:750,cut:250,active:true},
+    elite:{fee:1000,pool:2000,winner:1600,cut:400,active:true}
+  };
+  
+  const badges = {free:'level-free',starter:'level-starter',standard:'level-standard',pro:'level-pro',advanced:'level-advanced',elite:'level-elite'};
+  document.getElementById('level-list').innerHTML = Object.entries(levels).filter(([k,v])=>v.active).map(([k,v])=>`
+    <div class="level-card" onclick="selectLevel('${k}')">
+      <span class="level-badge ${badges[k]}">${k.toUpperCase()}</span>
+      <div class="level-info">
+        <div class="level-name">${k==='free'?'FREE PLAY':k.charAt(0).toUpperCase()+k.slice(1)}</div>
+        <div class="level-fee">${k==='free'?'No entry fee':`Entry: ₹${v.fee} • Pool: ₹${v.pool}`}</div>
+      </div>
+      <div class="level-prize">${k==='free'?'🎁 Coins':`₹${v.winner}`}</div>
+    </div>
+  `).join('');
+  
+  showPage('lobby');
+}
+
+function selectLevel(level){
+  const config = getData('pz_game_config');
+  const entry = config?.levels[level]?.fee || 0;
+  const payout = config?.levels[level]?.winner || 0;
+  const u = getCurrentUser();
+  
+  if(level!=='free' && (u.balance||0) < entry){
+    showToast('❌ Insufficient balance!', true);
+    setTimeout(()=>showPage('wallet'), 800);
+    return;
+  }
+  
+  // Show matchmaking briefly then redirect to game
+  document.getElementById('mm-level').textContent = `${level.toUpperCase()} — ${level==='free'?'FREE':`₹${entry} Entry`}`;
+  document.getElementById('modal-matchmaking').classList.add('open');
+  
+  const gameUrls = { pool:'games/pool.html', snooker:'games/snooker.html', chess:'games/chess.html' };
+  const url = gameUrls[selectedGame];
+  
+  // Save game session so the game page can save results back
+  const session = {
+    userId: u.id,
+    game: selectedGame,
+    level: level,
+    fee: entry,
+    payout: payout,
+    mode: '1v1'
+  };
+  setData('pz_game_session', session);
+  
+  if(level!=='free'){
+    updateUser({balance: (u.balance||0) - entry});
+    addTransaction('match_entry', -entry, `${selectedGame} match entry`);
+  }
+  
+  // Simulate matchmaking briefly
+  let sec = 0;
+  const timer = setInterval(()=>{
+    sec++;
+    document.getElementById('mm-timer').textContent = `⏱️ ${sec}s`;
+    if(sec >= 3){
+      clearInterval(timer);
+      document.getElementById('modal-matchmaking').classList.remove('open');
+      window.location.href = url + `?mode=1v1&level=${level}&fee=${entry}&payout=${payout}`;
+    }
+  }, 1000);
+}
+
+function cancelMatchmaking(){
+  document.getElementById('modal-matchmaking').classList.remove('open');
+  showToast('❌ Matchmaking cancelled');
+}
+
+function startFreeMode(){
+  const u = getCurrentUser();
+  setData('pz_game_session', { userId: u.id, game: selectedGame, level: 'free', fee: 0, payout: 0, mode: 'free' });
+  const gameUrls = { pool:'games/pool.html', snooker:'games/snooker.html', chess:'games/chess.html' };
+  window.location.href = gameUrls[selectedGame] + '?mode=free&level=free&fee=0&payout=0';
+}
+
+function startPracticeMode(){
+  const u = getCurrentUser();
+  setData('pz_game_session', { userId: u.id, game: selectedGame, level: 'practice', fee: 0, payout: 0, mode: 'practice' });
+  const gameUrls = { pool:'games/pool.html', snooker:'games/snooker.html', chess:'games/chess.html' };
+  window.location.href = gameUrls[selectedGame] + '?mode=practice&level=practice&fee=0&payout=0';
+}
+
+function openFriendMatch(){showPage('friends');showToast('Select a friend to invite!')}
+
+// ============================================================
+// WALLET
+// ============================================================
+function renderWallet(){
+  const u = getCurrentUser();
+  document.getElementById('wallet-balance').textContent = `₹${u.balance||0}`;
+  
+  const txs = getData(DB.txnPrefix + u.id) || [];
+  document.getElementById('txn-list').innerHTML = txs.length ? txs.slice(-10).reverse().map(t=>`
+    <div class="txn-item">
+      <span class="txn-icon">${t.icon||'💳'}</span>
+      <div class="txn-info">
+        <div class="txn-title">${t.desc||t.type}</div>
+        <div class="txn-date">${t.date||'Today'}</div>
+      </div>
+      <span class="txn-amount ${(t.amount||0)>0?'positive':'negative'}">${(t.amount||0)>0?'+':''}₹${Math.abs(t.amount||0)}</span>
+    </div>
+  `).join('') : '<div style="text-align:center;padding:24px;color:var(--text2);font-size:13px">No transactions yet</div>';
+}
+
+function addTransaction(type, amount, desc, icon='💳'){
+  const u = getCurrentUser();
+  const txs = getData(DB.txnPrefix + u.id) || [];
+  txs.push({
+    type, amount, desc, icon,
+    date: new Date().toLocaleDateString('en-IN'),
+    time: new Date().toLocaleTimeString('en-IN')
+  });
+  setData(DB.txnPrefix + u.id, txs);
+}
+
+function openDepositModal(){
+  // Generate amount buttons dynamically
+  const amounts = [50, 100, 200, 500, 1000, 2000];
+  const container = document.getElementById('deposit-amounts');
+  container.innerHTML = amounts.map(a => `
+    <div onclick="selectAmount(this,${a})" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center;cursor:pointer;transition:border-color 0.2s">
+      <div style="font-size:16px;font-weight:700;color:var(--gold)">₹${a}</div>
+      <div style="font-size:10px;color:var(--text2)">${a} Coins</div>
+    </div>
+  `).join('');
+  document.getElementById('modal-deposit').classList.add('open');
+  selectAmount(null, 100);
+}
+
+let selectedAmount = 100;
+function selectAmount(el, amt){
+  selectedAmount = amt;
+  document.getElementById('deposit-amount').textContent = amt;
+  document.getElementById('deposit-pay').textContent = amt;
+  document.querySelectorAll('#modal-deposit [style*="cursor:pointer"]').forEach(e=>{
+    if(e.parentElement) e.style.borderColor = 'var(--border)';
+  });
+  if(el) el.style.borderColor = 'var(--gold)';
+}
+
+function processDeposit(){
+  const amt = selectedAmount;
+  const u = getCurrentUser();
+  updateUser({balance: (u.balance||0) + amt});
+  addTransaction('deposit', amt, 'UPI Deposit', '💰');
+  document.getElementById('modal-deposit').classList.remove('open');
+  showSuccess('✅ Deposit Successful!', `₹${amt} added to your wallet`);
+  renderWallet();
+}
+
+function openWithdrawModal(){
+  document.getElementById('modal-withdraw').classList.add('open');
+  updateWithdrawInfo();
+}
+
+function updateWithdrawInfo(){
+  const amt = parseInt(document.getElementById('withdraw-amount').value)||0;
+  document.getElementById('withdraw-net').textContent = `₹${amt}`;
+}
+
+function processWithdraw(){
+  const amt = parseInt(document.getElementById('withdraw-amount').value)||0;
+  const upi = document.getElementById('withdraw-upi').value.trim();
+  const u = getCurrentUser();
+  
+  if(amt < 200){showToast('❌ Minimum ₹200 withdrawal',true);return}
+  if(!upi){showToast('❌ UPI ID dalo',true);return}
+  if((u.balance||0) < amt){showToast('❌ Insufficient balance!',true);return}
+  
+  updateUser({balance: (u.balance||0) - amt});
+  addTransaction('withdrawal', -amt, `Withdrawal to ${upi}`, '📤');
+  document.getElementById('modal-withdraw').classList.remove('open');
+  showSuccess('✅ Withdrawal Requested!', `₹${amt} will be sent to ${upi} within 24 hours`);
+  renderWallet();
+}
+
+// ============================================================
+// FRIENDS
+// ============================================================
+function renderFriends(){
+  const u = getCurrentUser();
+  const q = document.getElementById('friend-search').value.toLowerCase();
+  const friends = getData(DB.friendPrefix + u.id) || [];
+  const defaultFriends = [
+    {name:'Amit Singh',id:'PZ-1003',online:true},
+    {name:'Priya Verma',id:'PZ-1002',online:true},
+    {name:'Neha Gupta',id:'PZ-1004',online:false}
+  ];
+  const allFriends = friends.length ? friends : defaultFriends;
+  
+  const filtered = allFriends.filter(f=>f.name.toLowerCase().includes(q)||f.id.toLowerCase().includes(q));
+  
+  document.getElementById('friend-list').innerHTML = filtered.length ? filtered.map(f=>`
+    <div class="friend-item">
+      <div class="friend-av">${f.name[0]}</div>
+      <div class="friend-info">
+        <div class="friend-name">${f.name}</div>
+        <div class="friend-sub">${f.id}</div>
+      </div>
+      <span class="friend-status" style="background:${f.online?'rgba(58,190,122,0.12)':'rgba(138,133,120,0.12)'};color:${f.online?'var(--green)':'var(--text2)'}">
+        ${f.online?'🟢 Online':'⚫ Offline'}
+      </span>
+      <button class="btn btn-sm btn-outline" onclick="inviteFriend('${f.name}')">Invite</button>
+    </div>
+  `).join('') : '<div style="text-align:center;padding:24px;color:var(--text2);font-size:13px">No friends found. Unko PlayZip ID share karo!</div>';
+}
+
+function addFriend(){
+  const q = document.getElementById('friend-search').value.trim();
+  if(!q || q.length<3){showToast('❌ Sahi ID ya naam dalo',true);return}
+  const u = getCurrentUser();
+  const friends = getData(DB.friendPrefix + u.id) || [];
+  friends.push({name:q, id:'PZ-NEW', online:false});
+  setData(DB.friendPrefix + u.id, friends);
+  renderFriends();
+  showToast(`✅ ${q} added as friend!`);
+  document.getElementById('friend-search').value = '';
+}
+
+function inviteFriend(name){
+  showToast(`📩 Invite sent to ${name}!`);
+}
+
+// ============================================================
+// MATCH HISTORY
+// ============================================================
+function renderHistory(){
+  const u = getCurrentUser();
+  const history = getData(DB.historyPrefix + u.id) || [];
+  
+  if(!history.length){
+    const sampleHistory = [
+      {game:'Chess',level:'STARTER',entry:50,result:'win',payout:80,date:'Today',time:'2:30 PM'},
+      {game:'Pool',level:'FREE',entry:0,result:'win',payout:0,date:'Today',time:'1:15 PM'},
+      {game:'Snooker',level:'STANDARD',entry:100,result:'lose',payout:0,date:'Yesterday',time:'8:45 PM'},
+      {game:'Chess',level:'PRO',entry:200,result:'win',payout:350,date:'Yesterday',time:'6:20 PM'},
+      {game:'Pool',level:'STARTER',entry:50,result:'win',payout:80,date:'2 days ago',time:'10:00 AM'},
+    ];
+    setData(DB.historyPrefix + u.id, sampleHistory);
+    renderHistory();
+    return;
+  }
+  
+  document.getElementById('history-list').innerHTML = history.map(h=>`
+    <div class="match-item">
+      <div class="match-top">
+        <span class="match-game">${h.game}</span>
+        <span class="match-result ${h.result}">${h.result==='win'?'🏆 WIN':'😞 LOSE'}</span>
+      </div>
+      <div style="display:flex;gap:12px;font-size:12px;margin-bottom:6px">
+        <span class="badge badge-gold">${h.level}</span>
+        ${h.entry?`<span>Entry: ₹${h.entry}</span>`:''}
+        ${h.payout?`<span class="green">Payout: ₹${h.payout}</span>`:''}
+      </div>
+      <div class="match-bottom">
+        <span>${h.date}</span>
+        <span>${h.time}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function addMatchHistory(game, level, entry, result){
+  const u = getCurrentUser();
+  const history = getData(DB.historyPrefix + u.id) || [];
+  const config = getData('pz_game_config');
+  const payout = result==='win' ? (config?.levels[level]?.winner || 0) : 0;
+  
+  history.unshift({
+    game: GAME_INFO[game]?.name || game,
+    level: level.toUpperCase(),
+    entry, result, payout,
+    date: 'Today',
+    time: new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})
+  });
+  setData(DB.historyPrefix + u.id, history);
+  
+  // Update stats
+  updateUser({matches: (u.matches||0)+1, wins: result==='win'?(u.wins||0)+1:(u.wins||0)});
+}
+
+// ============================================================
+// PROFILE
+// ============================================================
+function renderProfile(){
+  const u = getCurrentUser();
+  document.getElementById('profile-av').textContent = (u.name||'U')[0].toUpperCase();
+  document.getElementById('profile-name').textContent = u.name||'Player';
+  document.getElementById('profile-id').textContent = 'PZ-'+u.id?.replace('U-','');
+  document.getElementById('stat-matches').textContent = u.matches||0;
+  document.getElementById('stat-wins').textContent = u.wins||0;
+  const wr = u.matches ? Math.round((u.wins||0)/(u.matches||1)*100) : 0;
+  document.getElementById('stat-winrate').textContent = wr+'%';
+  document.getElementById('p-phone').textContent = u.phone||'—';
+  document.getElementById('p-upi').textContent = u.upi||'Not set';
+  const kycEl = document.getElementById('p-kyc');
+  if(u.kyc==='verified'){kycEl.textContent='✅ Verified';kycEl.className='badge badge-green'}
+  else if(u.kyc==='pending'){kycEl.textContent='⏳ Pending';kycEl.className='badge badge-gold'}
+  else {kycEl.textContent='❌ Rejected';kycEl.className='badge badge-red'}
+  document.getElementById('p-join').textContent = u.joinDate||'Today';
+}
+
+// ============================================================
+// MODALS & TOASTS
+// ============================================================
+// ============================================================
+// GAME RESULT HANDLING
+// ============================================================
+// Checks localStorage for a pending game result from game pages (pool/snooker/chess)
+// and updates match history + wallet balance accordingly.
+function checkPendingGameResult(){
+  const result = getData('pz_game_result');
+  if(!result) return;
+  
+  // Clear it immediately to prevent double-processing
+  localStorage.removeItem('pz_game_result');
+  
+  const u = getCurrentUser();
+  if(!u) return;
+  
+  const { game, result: res, level, fee, payout, mode } = result;
+  
+  // Add to match history
+  const history = getData(DB.historyPrefix + u.id) || [];
+  history.unshift({
+    game: GAME_INFO[game]?.name || game,
+    level: (level||'free').toUpperCase(),
+    entry: fee||0,
+    result: res,
+    payout: payout||0,
+    date: 'Today',
+    time: new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})
+  });
+  setData(DB.historyPrefix + u.id, history);
+  
+  // Update stats
+  const newMatches = (u.matches||0) + 1;
+  const newWins = (u.wins||0) + (res==='win'?1:0);
+  updateUser({ matches: newMatches, wins: newWins });
+  
+  // Add payout to balance if won
+  if(res==='win' && payout > 0){
+    updateUser({ balance: (u.balance||0) + payout });
+    addTransaction('match_win', payout, `${game} match win!`, '🏆');
+  }
+  
+  // Refresh UI
+  renderWallet();
+  renderHistory();
+  renderProfile();
+  
+  // Show success toast
+  if(res==='win'){
+    showSuccess('🏆 Match Won!', `${GAME_INFO[game]?.name||game}: Won ₹${payout}!`, '🏆');
+  } else {
+    showToast('😞 Match lost! Better luck next time!');
+  }
+}
+
+function closeModal(id){
+  document.getElementById(id).classList.remove('open');
+}
+
+function showSuccess(title, sub, icon='✅'){
+  document.getElementById('success-icon').textContent = icon;
+  document.getElementById('success-title').textContent = title;
+  document.getElementById('success-sub').textContent = sub;
+  document.getElementById('modal-success').classList.add('open');
+}
+
+let toastTimer;
+function showToast(msg, isError=false){
+  clearTimeout(toastTimer);
+  let t = document.getElementById('toast-custom');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'toast-custom';
+    t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:999;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;transition:all 0.3s;opacity:0;white-space:nowrap';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.background = isError?'rgba(226,92,58,0.9)':'rgba(58,190,122,0.9)';
+  t.style.color = '#fff';
+  t.style.opacity = '1';
+  toastTimer = setTimeout(()=>{t.style.opacity='0'}, 2500);
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(m=>{
+  m.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open')});
+});
+
+// Check for game results when returning from game pages (bfcache/pageshow)
+window.addEventListener('pageshow', checkPendingGameResult);
+
+console.log('🎮 PlayZip User App v1.0 — Game result system active');
+</script>
+</body>
+</html>

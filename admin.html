@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PlayZip — Owner Admin Panel</title>
+<meta name="theme-color" content="#0A0A0F">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --gold:#C9A84C;--gold-light:#F0C96A;--gold-dark:#8B6914;
+    --bg:#0A0A0F;--bg2:#12121A;--bg3:#1A1A26;
+    --text:#F0EBD8;--text2:#8A8578;--text3:#5A5650;
+    --border:rgba(201,168,76,0.12);--border-hover:rgba(201,168,76,0.35);
+    --red:#E25C3A;--green:#3ABE7A;--blue:#5B99F0;
+    --yellow:#E8B84C;--purple:#A78BFA;
+    --shadow:0 1px 3px rgba(0,0,0,0.3);
+    --radius:10px;--radius-lg:16px;
+  }
+  html,body{height:100%}
+  body{
+    font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);
+    overflow-x:hidden;
+  }
+  input,select,textarea,button{font-family:inherit;outline:none}
+  ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg2)}
+  ::-webkit-scrollbar-thumb{background:var(--gold-dark);border-radius:99px}
+
+  /* LOGIN SCREEN */
+  #login-screen{
+    position:fixed;inset:0;z-index:999;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--bg);background-image:
+      radial-gradient(ellipse 60% 50% at 50% 0%, rgba(201,168,76,0.08) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 40% at 80% 80%, rgba(201,168,76,0.04) 0%, transparent 60%);
+  }
+  .login-box{
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius-lg);padding:40px 36px;
+    width:min(400px,92vw);text-align:center;
+  }
+  .login-logo{font-size:64px;margin-bottom:12px}
+  .login-title{font-size:28px;font-weight:800;letter-spacing:-0.5px}
+  .login-title span{color:var(--gold)}
+  .login-sub{font-size:13px;color:var(--text2);margin:8px 0 28px}
+  .login-input{
+    width:100%;padding:14px 16px;
+    background:var(--bg3);border:1px solid var(--border);
+    border-radius:var(--radius);color:var(--text);
+    font-size:16px;margin-bottom:12px;
+    transition:border-color 0.2s;
+  }
+  .login-input:focus{border-color:var(--gold)}
+  .login-btn{
+    width:100%;padding:14px;border:none;border-radius:var(--radius);
+    background:linear-gradient(135deg,var(--gold-light),var(--gold));
+    color:#000;font-size:15px;font-weight:700;cursor:pointer;
+    transition:transform 0.15s;
+  }
+  .login-btn:hover{transform:translateY(-1px)}
+  .login-err{color:var(--red);font-size:13px;margin-top:10px;display:none}
+
+  /* APP LAYOUT */
+  #app{display:none;height:100vh;overflow:hidden}
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 28px;background:var(--bg2);
+    border-bottom:1px solid var(--border);height:64px;
+  }
+  .topbar-left{display:flex;align-items:center;gap:12px}
+  .topbar-logo{font-size:22px;font-weight:800;letter-spacing:-0.5px}
+  .topbar-logo span{color:var(--gold)}
+  .topbar-sub{font-size:11px;color:var(--text2);letter-spacing:2px;text-transform:uppercase}
+  .topbar-right{display:flex;align-items:center;gap:16px}
+  .topbar-time{font-size:12px;color:var(--text2);font-family:'JetBrains Mono',monospace}
+  .logout-btn{
+    padding:8px 18px;background:rgba(226,92,58,0.15);
+    border:1px solid rgba(226,92,58,0.3);color:var(--red);
+    border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;
+    transition:background 0.2s;
+  }
+  .logout-btn:hover{background:rgba(226,92,58,0.25)}
+
+  .main-layout{display:flex;height:calc(100vh - 64px)}
+  
+  /* SIDEBAR */
+  .sidebar{
+    width:220px;background:var(--bg2);border-right:1px solid var(--border);
+    padding:16px 0;overflow-y:auto;flex-shrink:0;
+  }
+  .nav-item{
+    display:flex;align-items:center;gap:10px;
+    padding:11px 20px;cursor:pointer;
+    font-size:13px;font-weight:500;color:var(--text2);
+    border-left:3px solid transparent;
+    transition:all 0.15s;
+  }
+  .nav-item:hover{color:var(--text);background:rgba(201,168,76,0.04)}
+  .nav-item.active{
+    color:var(--gold);background:rgba(201,168,76,0.08);
+    border-left-color:var(--gold);font-weight:600;
+  }
+  .nav-icon{font-size:16px;width:20px;text-align:center}
+  .nav-badge{
+    margin-left:auto;padding:2px 8px;border-radius:99px;
+    font-size:10px;font-weight:600;
+  }
+  .nav-badge.gold{background:rgba(201,168,76,0.15);color:var(--gold)}
+  .nav-badge.red{background:rgba(226,92,58,0.15);color:var(--red)}
+  .nav-badge.green{background:rgba(58,190,122,0.15);color:var(--green)}
+
+  /* CONTENT */
+  .content{
+    flex:1;padding:24px 28px;overflow-y:auto;
+    background:var(--bg);
+  }
+  .page{display:none;animation:fadeIn 0.25s}
+  .page.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  .page-header{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:24px;flex-wrap:wrap;gap:12px;
+  }
+  .page-title{font-size:22px;font-weight:700;letter-spacing:-0.3px}
+  .page-sub{font-size:12px;color:var(--text2);margin-top:4px}
+  .page-actions{display:flex;gap:8px}
+
+  .btn{
+    padding:9px 20px;border-radius:var(--radius);font-size:13px;
+    font-weight:600;cursor:pointer;border:none;
+    transition:all 0.15s;display:inline-flex;align-items:center;gap:6px;
+  }
+  .btn-gold{background:linear-gradient(135deg,var(--gold-light),var(--gold));color:#000}
+  .btn-gold:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(201,168,76,0.3)}
+  .btn-outline{background:transparent;border:1px solid var(--border);color:var(--text2)}
+  .btn-outline:hover{border-color:var(--gold);color:var(--gold)}
+  .btn-red{background:rgba(226,92,58,0.15);color:var(--red);border:1px solid rgba(226,92,58,0.3)}
+  .btn-red:hover{background:rgba(226,92,58,0.25)}
+  .btn-green{background:rgba(58,190,122,0.15);color:var(--green);border:1px solid rgba(58,190,122,0.3)}
+  .btn-green:hover{background:rgba(58,190,122,0.25)}
+  .btn-blue{background:rgba(91,153,240,0.15);color:var(--blue);border:1px solid rgba(91,153,240,0.3)}
+  .btn-blue:hover{background:rgba(91,153,240,0.25)}
+  .btn-sm{padding:6px 14px;font-size:12px}
+
+  /* STATS CARDS */
+  .stats-grid{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    gap:12px;margin-bottom:24px;
+  }
+  .stat-card{
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius-lg);padding:20px;
+    position:relative;overflow:hidden;
+  }
+  .stat-card::before{
+    content:'';position:absolute;top:0;right:0;
+    width:80px;height:80px;border-radius:50%;
+    transform:translate(20px,-20px);
+  }
+  .stat-card.gold::before{background:rgba(201,168,76,0.06)}
+  .stat-card.green::before{background:rgba(58,190,122,0.06)}
+  .stat-card.blue::before{background:rgba(91,153,240,0.06)}
+  .stat-card.red::before{background:rgba(226,92,58,0.06)}
+  .stat-card.purple::before{background:rgba(167,139,186,0.06)}
+  .stat-card.yellow::before{background:rgba(232,184,76,0.06)}
+  .stat-icon{font-size:28px;margin-bottom:8px}
+  .stat-label{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;font-weight:500}
+  .stat-value{
+    font-size:28px;font-weight:800;margin-top:4px;
+    font-family:'JetBrains Mono',monospace;
+    letter-spacing:-0.5px;
+  }
+  .stat-card.gold .stat-value{color:var(--gold)}
+  .stat-card.green .stat-value{color:var(--green)}
+  .stat-card.blue .stat-value{color:var(--blue)}
+  .stat-card.red .stat-value{color:var(--red)}
+  .stat-card.purple .stat-value{color:var(--purple)}
+  .stat-change{font-size:11px;margin-top:4px;font-weight:500}
+  .stat-change.up{color:var(--green)}
+  .stat-change.down{color:var(--red)}
+
+  /* TABLE */
+  .table-wrap{
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius-lg);overflow:hidden;
+  }
+  .table-header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 20px;border-bottom:1px solid var(--border);
+  }
+  .table-header h3{font-size:15px;font-weight:600}
+  .table-search{
+    padding:8px 14px;background:var(--bg3);border:1px solid var(--border);
+    border-radius:var(--radius);color:var(--text);
+    font-size:13px;width:200px;
+  }
+  .table-search:focus{border-color:var(--gold)}
+  table{width:100%;border-collapse:collapse}
+  th{
+    padding:12px 16px;text-align:left;
+    font-size:11px;font-weight:600;color:var(--text2);
+    text-transform:uppercase;letter-spacing:1px;
+    border-bottom:1px solid var(--border);background:rgba(201,168,76,0.03);
+  }
+  td{
+    padding:12px 16px;font-size:13px;
+    border-bottom:1px solid rgba(255,255,255,0.03);
+  }
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:rgba(201,168,76,0.02)}
+
+  .badge{
+    display:inline-flex;align-items:center;gap:4px;
+    padding:3px 10px;border-radius:99px;
+    font-size:11px;font-weight:600;
+  }
+  .badge-green{background:rgba(58,190,122,0.12);color:var(--green)}
+  .badge-red{background:rgba(226,92,58,0.12);color:var(--red)}
+  .badge-gold{background:rgba(201,168,76,0.12);color:var(--gold)}
+  .badge-blue{background:rgba(91,153,240,0.12);color:var(--blue)}
+  .badge-gray{background:rgba(138,133,120,0.12);color:var(--text2)}
+
+  .mono{font-family:'JetBrains Mono',monospace;font-size:12px}
+  .gold{color:var(--gold)}
+  .green{color:var(--green)}
+  .red{color:var(--red)}
+
+  /* MODAL */
+  .modal-overlay{
+    display:none;position:fixed;inset:0;z-index:200;
+    background:rgba(0,0,0,0.6);align-items:center;justify-content:center;
+    padding:16px;
+  }
+  .modal-overlay.open{display:flex}
+  .modal{
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:var(--radius-lg);padding:28px;
+    width:min(520px,92vw);max-height:90vh;overflow-y:auto;
+  }
+  .modal-title{font-size:18px;font-weight:700;margin-bottom:4px}
+  .modal-sub{font-size:12px;color:var(--text2);margin-bottom:20px}
+  .form-group{margin-bottom:16px}
+  .form-label{font-size:12px;color:var(--text2);font-weight:600;margin-bottom:6px;display:block}
+  .form-input,.form-select{
+    width:100%;padding:11px 14px;
+    background:var(--bg3);border:1px solid var(--border);
+    border-radius:var(--radius);color:var(--text);
+    font-size:13px;transition:border-color 0.2s;
+  }
+  .form-input:focus,.form-select:focus{border-color:var(--gold)}
+  .form-select option{background:var(--bg3);color:var(--text)}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+  .btn-cancel{background:var(--bg3);color:var(--text2);border:1px solid var(--border);padding:9px 18px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer}
+
+  /* TOGGLE SWITCH */
+  .toggle{position:relative;width:40px;height:22px;display:inline-block}
+  .toggle input{opacity:0;width:0;height:0}
+  .slider{
+    position:absolute;inset:0;cursor:pointer;
+    background:var(--bg3);border-radius:99px;transition:0.2s;
+  }
+  .slider::before{
+    content:'';position:absolute;height:16px;width:16px;
+    left:3px;bottom:3px;background:var(--text2);
+    border-radius:50%;transition:0.2s;
+  }
+  .toggle input:checked+.slider{background:var(--green)}
+  .toggle input:checked+.slider::before{transform:translateX(18px);background:#fff}
+
+  /* CHART SIMULATION */
+  .bar-chart{display:flex;align-items:flex-end;gap:6px;padding:20px 0 10px;height:120px}
+  .bar{
+    flex:1;border-radius:4px 4px 0 0;min-height:8px;
+    transition:height 0.5s;position:relative;
+  }
+  .bar:hover{opacity:0.8}
+  .bar-label{text-align:center;font-size:10px;color:var(--text3);margin-top:6px}
+
+  /* RESPONSIVE */
+  @media(max-width:768px){
+    .sidebar{display:none;position:fixed;inset:0;z-index:50;width:100%;background:var(--bg2);padding-top:16px}
+    .sidebar.open{display:block}
+    .content{padding:16px}
+    .stats-grid{grid-template-columns:1fr 1fr}
+    .topbar{padding:12px 16px}
+    .form-row{grid-template-columns:1fr}
+    .table-search{width:120px}
+  }
+  .sidebar-toggle{display:none;background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;padding:4px}
+  @media(max-width:768px){.sidebar-toggle{display:block}}
+
+  .empty-state{text-align:center;padding:40px;color:var(--text2);font-size:13px}
+  .empty-state .icon{font-size:40px;margin-bottom:12px}
+
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;margin-right:5px;animation:pulse 1.5s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+
+  .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+  .chip-pool{background:rgba(59,130,246,0.12);color:#5B99F0}
+  .chip-snooker{background:rgba(58,190,122,0.12);color:var(--green)}
+  .chip-chess{background:rgba(167,139,186,0.12);color:var(--purple)}
+  .chip-free{background:rgba(201,168,76,0.12);color:var(--gold)}
+
+  .notif-toast{
+    position:fixed;bottom:24px;right:24px;
+    background:var(--green);color:white;
+    padding:14px 20px;border-radius:var(--radius);
+    font-size:13px;font-weight:600;z-index:999;
+    transform:translateY(100px);opacity:0;
+    transition:all 0.3s;
+  }
+  .notif-toast.show{transform:none;opacity:1}
+  .notif-toast.error{background:var(--red)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">🎮</div>
+    <div class="login-title">Play<span>Zip</span></div>
+    <div class="login-sub">Owner Admin Panel — Platform Control Center</div>
+    <input type="password" id="login-pass" class="login-input" placeholder="Master Password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">Login to Dashboard</button>
+    <div class="login-err" id="login-err">❌ Galat password! Dobara try karein.</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+      <div><span class="topbar-logo">Play<span>Zip</span></span></div>
+      <span class="topbar-sub">Owner Panel</span>
+    </div>
+    <div class="topbar-right">
+      <span class="topbar-time" id="topbar-time"></span>
+      <button class="logout-btn" onclick="logout()">⏻ Logout</button>
+    </div>
+  </div>
+
+  <div class="main-layout">
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+      <div class="nav-item active" data-page="dashboard" onclick="showPage('dashboard',this)">
+        <span class="nav-icon">📊</span> Dashboard
+      </div>
+      <div class="nav-item" data-page="users" onclick="showPage('users',this)">
+        <span class="nav-icon">👥</span> Users
+        <span class="nav-badge gold" id="user-badge">0</span>
+      </div>
+      <div class="nav-item" data-page="games" onclick="showPage('games',this)">
+        <span class="nav-icon">🎮</span> Game Config
+      </div>
+      <div class="nav-item" data-page="payments" onclick="showPage('payments',this)">
+        <span class="nav-icon">💳</span> Payments
+        <span class="nav-badge red" id="withdraw-badge">0</span>
+      </div>
+      <div class="nav-item" data-page="matches" onclick="showPage('matches',this)">
+        <span class="nav-icon">⚔️</span> Live Matches
+        <span class="nav-badge green" id="match-badge">0</span>
+      </div>
+      <div class="nav-item" data-page="reports" onclick="showPage('reports',this)">
+        <span class="nav-icon">📈</span> Reports
+      </div>
+      <div class="nav-item" data-page="security" onclick="showPage('security',this)">
+        <span class="nav-icon">🛡️</span> Security
+      </div>
+      <div class="nav-item" data-page="ads" onclick="showPage('ads',this)">
+        <span class="nav-icon">📢</span> Ads
+      </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content" id="content">
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-header">
+          <div>
+            <div class="page-title">📊 Dashboard</div>
+            <div class="page-sub">Real-time platform overview</div>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-outline btn-sm" onclick="refreshDashboard()">🔄 Refresh</button>
+          </div>
+        </div>
+        <div class="stats-grid" id="dash-stats"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="table-wrap">
+            <div class="table-header"><h3>📈 Weekly Revenue</h3></div>
+            <div class="bar-chart" id="revenue-chart"></div>
+          </div>
+          <div class="table-wrap">
+            <div class="table-header"><h3>🎮 Game-wise Earnings</h3></div>
+            <div style="padding:16px" id="game-earnings"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- USERS -->
+      <div class="page" id="page-users">
+        <div class="page-header">
+          <div>
+            <div class="page-title">👥 User Management</div>
+            <div class="page-sub">Manage all platform users</div>
+          </div>
+          <div class="page-actions">
+            <input class="table-search" id="user-search" placeholder="🔍 Search users..." oninput="renderUsers()">
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table><thead><tr>
+            <th>User</th><th>ID</th><th>Phone</th><th>Balance</th><th>Matches</th><th>Status</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="user-table-body"></tbody></table>
+        </div>
+      </div>
+
+      <!-- GAMES -->
+      <div class="page" id="page-games">
+        <div class="page-header">
+          <div>
+            <div class="page-title">🎮 Game Configuration</div>
+            <div class="page-sub">Entry fees, payouts & platform cut</div>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-gold btn-sm" onclick="openGameModal()">✏️ Edit Fees</button>
+          </div>
+        </div>
+        <div class="stats-grid" style="grid-template-columns:1fr 1fr 1fr" id="game-toggle-cards"></div>
+        <div class="table-wrap" style="margin-top:16px">
+          <div class="table-header"><h3>💰 Entry Fee & Payout Table</h3></div>
+          <table><thead><tr>
+            <th>Level</th><th>Entry Fee</th><th>Total Pool</th><th>Winner Gets</th><th>Platform Cut</th><th>Status</th>
+          </tr></thead>
+          <tbody id="fee-table-body"></tbody></table>
+        </div>
+      </div>
+
+      <!-- PAYMENTS -->
+      <div class="page" id="page-payments">
+        <div class="page-header">
+          <div>
+            <div class="page-title">💳 Payment Management</div>
+            <div class="page-sub">Deposits, withdrawals & transactions</div>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-outline btn-sm" onclick="switchPaymentTab('deposits')" id="pay-tab-deposits" style="background:rgba(201,168,76,0.08);color:var(--gold)">Deposits</button>
+            <button class="btn btn-outline btn-sm" onclick="switchPaymentTab('withdrawals')" id="pay-tab-withdrawals">Withdrawals</button>
+          </div>
+        </div>
+        <div id="payments-content"></div>
+      </div>
+
+      <!-- MATCHES -->
+      <div class="page" id="page-matches">
+        <div class="page-header">
+          <div>
+            <div class="page-title">⚔️ Live Matches</div>
+            <div class="page-sub">Real-time ongoing matches</div>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-red btn-sm" onclick="if(confirm('All live matches ko void karein?'))voidAllMatches()">Void All</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table><thead><tr>
+          <th>Match ID</th><th>Game</th><th>Players</th><th>Level</th><th>Status</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="match-table-body"></tbody></table></div>
+      </div>
+
+      <!-- REPORTS -->
+      <div class="page" id="page-reports">
+        <div class="page-header">
+          <div>
+            <div class="page-title">📈 Revenue Reports</div>
+            <div class="page-sub">Daily, weekly & game-wise earnings</div>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-gold btn-sm" onclick="exportCSV()">📥 Export CSV</button>
+          </div>
+        </div>
+        <div class="stats-grid" id="report-stats"></div>
+        <div class="table-wrap" style="margin-top:16px">
+          <div class="table-header"><h3>📋 Transaction Log</h3></div>
+          <table><thead><tr>
+            <th>Date</th><th>Type</th><th>User</th><th>Amount</th><th>Status</th>
+          </tr></thead>
+          <tbody id="report-table-body"></tbody></table>
+        </div>
+      </div>
+
+      <!-- SECURITY -->
+      <div class="page" id="page-security">
+        <div class="page-header">
+          <div>
+            <div class="page-title">🛡️ Security & Anti-Cheat</div>
+            <div class="page-sub">Fraud detection, IP bans, suspicious activity</div>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-blue btn-sm" onclick="openIPBanModal()">🚫 Ban IP</button>
+          </div>
+        </div>
+        <div class="stats-grid" id="security-stats"></div>
+        <div class="table-wrap" style="margin-top:16px">
+          <div class="table-header"><h3>⚠️ Anti-Cheat Reports</h3></div>
+          <table><thead><tr>
+            <th>Report ID</th><th>User</th><th>Type</th><th>Severity</th><th>Status</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="security-table-body"></tbody></table>
+        </div>
+      </div>
+
+      <!-- ADS -->
+      <div class="page" id="page-ads">
+        <div class="page-header">
+          <div>
+            <div class="page-title">📢 AdMob Management</div>
+            <div class="page-sub">Ad placements, earnings, reward settings</div>
+          </div>
+        </div>
+        <div class="stats-grid" id="ad-stats"></div>
+        <div class="table-wrap" style="margin-top:16px">
+          <div class="table-header"><h3>📌 Ad Placements</h3></div>
+          <table><thead><tr>
+            <th>Placement</th><th>Type</th><th>Status</th><th>Toggle</th>
+          </tr></thead>
+          <tbody id="ad-table-body"></tbody></table>
+        </div>
+        <div class="table-wrap" style="margin-top:12px">
+          <div class="table-header"><h3>🎁 Reward Settings</h3></div>
+          <div style="padding:16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+            <div><label style="font-size:12px;color:var(--text2)">Min Coins</label><br><input type="number" id="reward-min" class="form-input" style="width:100px" onchange="saveAdSettings()"></div>
+            <div><label style="font-size:12px;color:var(--text2)">Max Coins</label><br><input type="number" id="reward-max" class="form-input" style="width:100px" onchange="saveAdSettings()"></div>
+            <div style="font-size:12px;color:var(--text2)">💰 <span class="gold" id="ad-earnings-display">₹0</span> total earnings</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="notif-toast" id="toast"></div>
+
+<!-- GAME CONFIG MODAL -->
+<div class="modal-overlay" id="game-modal">
+  <div class="modal">
+    <div class="modal-title">✏️ Edit Fee Structure</div>
+    <div class="modal-sub">Update entry fees & payouts — changes apply immediately</div>
+    <div id="fee-form"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('game-modal')">Cancel</button>
+      <button class="btn btn-gold" onclick="saveFees()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- IP BAN MODAL -->
+<div class="modal-overlay" id="ip-ban-modal">
+  <div class="modal">
+    <div class="modal-title">🚫 IP Ban</div>
+    <div class="modal-sub">IP address block karein</div>
+    <div class="form-group">
+      <label class="form-label">IP Address</label>
+      <input class="form-input" id="ban-ip-input" placeholder="192.168.1.1">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Reason</label>
+      <input class="form-input" id="ban-reason-input" placeholder="Fraud / Multi-account / Cheating">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('ip-ban-modal')">Cancel</button>
+      <button class="btn btn-red" onclick="banIP()">Ban IP</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// DATA STORE
+// ============================================================
+const DB = {
+  users: 'pz_users',
+  transactions: 'pz_transactions',
+  matches: 'pz_matches', 
+  config: 'pz_game_config',
+  ads: 'pz_ads',
+  security: 'pz_security',
+  bans: 'pz_ip_bans'
+};
+
+function getData(key){try{return JSON.parse(localStorage.getItem(key)||'null')}catch(e){return null}}
+function setData(key,val){localStorage.setItem(key,JSON.stringify(val))}
+
+// INIT DATA
+function initData(){
+  if(!getData(DB.users)){
+    setData(DB.users,[
+      {id:'U-1001',name:'Rahul Sharma',phone:'9876543210',balance:1250,matches:47,wins:32,status:'active',kyc:'verified',upi:'rahul@paytm',joinDate:'2026-04-15'},
+      {id:'U-1002',name:'Priya Verma',phone:'9876543211',balance:890,matches:28,wins:18,status:'active',kyc:'verified',upi:'priya@upi'},
+      {id:'U-1003',name:'Amit Singh',phone:'9876543212',balance:2340,matches:62,wins:45,status:'active',kyc:'verified',upi:'amit@paytm'},
+      {id:'U-1004',name:'Neha Gupta',phone:'9876543213',balance:450,matches:15,wins:8,status:'active',kyc:'pending',upi:'neha@upi'},
+      {id:'U-1005',name:'Vikram Patel',phone:'9876543214',balance:0,matches:3,wins:1,status:'blocked',kyc:'rejected',upi:'vikram@paytm'},
+    ]);
+  }
+  if(!getData(DB.transactions)){
+    const txs = [];
+    const types = ['deposit','withdrawal','match_entry','match_win','commission','refund'];
+    const statuses = ['completed','pending','failed'];
+    for(let i=0;i<25;i++){
+      const d=new Date();d.setDate(d.getDate()-Math.floor(Math.random()*30));
+      txs.push({
+        id:'TXN-'+(1000+i),date:d.toISOString().split('T')[0],
+        type:types[Math.floor(Math.random()*types.length)],
+        user:['Rahul Sharma','Priya Verma','Amit Singh','Neha Gupta'][Math.floor(Math.random()*4)],
+        amount:Math.floor(Math.random()*500+50),
+        status:statuses[Math.floor(Math.random()*statuses.length)]
+      });
+    }
+    setData(DB.transactions,txs);
+  }
+  if(!getData(DB.matches)){
+    const games=['Pool','Snooker','Chess'];
+    const levels=['Starter','Standard','Pro','Advanced'];
+    const statuses=['in_progress','completed','waiting'];
+    const matches=[];
+    for(let i=0;i<10;i++){
+      matches.push({
+        id:'M-'+(2000+i),game:games[Math.floor(Math.random()*games.length)],
+        players:[
+          {name:['Rahul','Priya','Amit','Neha','Vikram'][Math.floor(Math.random()*5)]},
+          {name:['Rahul','Priya','Amit','Neha','Vikram'][Math.floor(Math.random()*5)]}
+        ],
+        level:levels[Math.floor(Math.random()*levels.length)],
+        entry:50+Math.floor(Math.random()*8)*50,
+        status:statuses[Math.floor(Math.random()*statuses.length)]
+      });
+    }
+    setData(DB.matches,matches);
+  }
+  if(!getData(DB.config)){
+    setData(DB.config,{
+      levels:{
+        free:{fee:0,pool:0,winner:0,cut:0,active:true},
+        starter:{fee:50,pool:100,winner:80,cut:20,active:true},
+        standard:{fee:100,pool:200,winner:170,cut:30,active:true},
+        pro:{fee:200,pool:400,winner:350,cut:50,active:true},
+        advanced:{fee:500,pool:1000,winner:750,cut:250,active:true},
+        elite:{fee:1000,pool:2000,winner:1600,cut:400,active:true}
+      },
+      games:{pool:{locked:false},snooker:{locked:false},chess:{locked:false}}
+    });
+  }
+  if(!getData(DB.ads)){
+    setData(DB.ads,{
+      placements:{
+        before_game:{type:'Interstitial',active:true},
+        matchmaking:{type:'Interstitial',active:true},
+        after_game:{type:'Interstitial',active:true},
+        result_screen:{type:'Interstitial',active:true},
+        home_banner:{type:'Banner',active:true},
+        rewarded_ad:{type:'Rewarded',active:true}
+      },
+      reward:{min:1,max:5},
+      earnings:Math.floor(Math.random()*15000+5000)
+    });
+  }
+  if(!getData(DB.security)){
+    setData(DB.security,{
+      reports:[
+        {id:'AC-1',user:'user_abc',type:'Suspicious Movement',severity:'high',status:'open'},
+        {id:'AC-2',user:'user_xyz',type:'Multiple Accounts',severity:'critical',status:'investigating'},
+        {id:'AC-3',user:'user_123',type:'Unusual Win Pattern',severity:'medium',status:'open'},
+      ],
+      ipBans:[]
+    });
+  }
+  renderAll();
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+const MASTER_PASS = 'playzip@owner2026';
+
+function doLogin(){
+  const v=document.getElementById('login-pass').value;
+  if(v===MASTER_PASS){
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').style.display='flex';
+    document.getElementById('app').style.flexDirection='column';
+    document.getElementById('app').querySelector('.main-layout').style.flex='1';
+    initData();
+    startClock();
+  } else {
+    document.getElementById('login-err').style.display='block';
+    document.getElementById('login-pass').value='';
+  }
+}
+
+function logout(){
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-pass').value='';
+}
+
+function startClock(){
+  function tick(){
+    document.getElementById('topbar-time').textContent=new Date().toLocaleString('en-IN');
+  }
+  tick();setInterval(tick,1000);
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+let currentPage='dashboard';
+
+function showPage(page,el){
+  currentPage=page;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  if(el)el.classList.add('active');
+  document.getElementById('sidebar').classList.remove('open');
+}
+
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ============================================================
+// NOTIFICATION
+// ============================================================
+function showToast(msg,isError=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='notif-toast'+(isError?' error':'');
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ============================================================
+// RENDER ALL
+// ============================================================
+function renderAll(){
+  renderDashboard();
+  renderUsers();
+  renderGames();
+  renderMatches();
+  renderPayments('deposits');
+  renderReports();
+  renderSecurity();
+  renderAds();
+  updateBadges();
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function renderDashboard(){
+  const users=getData(DB.users)||[];
+  const matches=getData(DB.matches)||[];
+  const txs=getData(DB.transactions)||[];
+  const config=getData(DB.config);
+  
+  const totalUsers=users.length;
+  const activeUsers=users.filter(u=>u.status==='active').length;
+  const liveMatches=matches.filter(m=>m.status==='in_progress').length;
+  const totalRevenue=txs.filter(t=>t.type==='commission').reduce((s,t)=>s+t.amount,0)+
+    txs.filter(t=>t.type==='match_entry').reduce((s,t)=>s+t.amount,0);
+  const totalDeposits=txs.filter(t=>t.type==='deposit'&&t.status==='completed').reduce((s,t)=>s+t.amount,0);
+  const pendingWithdrawals=txs.filter(t=>t.type==='withdrawal'&&t.status==='pending').length;
+  
+  document.getElementById('dash-stats').innerHTML=`
+    <div class="stat-card gold">
+      <div class="stat-icon">👥</div>
+      <div class="stat-label">Total Users</div>
+      <div class="stat-value">${totalUsers}</div>
+      <div class="stat-change up">${activeUsers} active</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-icon">⚔️</div>
+      <div class="stat-label">Live Matches</div>
+      <div class="stat-value">${liveMatches}</div>
+      <div class="stat-change up">${matches.filter(m=>m.status==='completed').length} completed today</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="stat-icon">💰</div>
+      <div class="stat-label">Total Revenue</div>
+      <div class="stat-value">₹${(totalRevenue).toLocaleString()}</div>
+      <div class="stat-change up">+₹${Math.floor(totalRevenue*0.12)} this week</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-icon">📤</div>
+      <div class="stat-label">Pending Withdrawals</div>
+      <div class="stat-value">${pendingWithdrawals}</div>
+      <div class="stat-change down">₹${txs.filter(t=>t.type==='withdrawal'&&t.status==='pending').reduce((s,t)=>s+t.amount,0).toLocaleString()} pending</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="stat-icon">💳</div>
+      <div class="stat-label">Total Deposits</div>
+      <div class="stat-value">₹${totalDeposits.toLocaleString()}</div>
+    </div>
+    <div class="stat-card yellow">
+      <div class="stat-icon">📢</div>
+      <div class="stat-label">Ad Revenue</div>
+      <div class="stat-value">₹${(getData(DB.ads)?.earnings||0).toLocaleString()}</div>
+    </div>
+  `;
+
+  // Revenue chart
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const data=[3200,2800,4100,3900,5200,4800,6100];
+  document.getElementById('revenue-chart').innerHTML=data.map((v,i)=>`
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center">
+      <div class="bar" style="height:${v/6100*100}%;background:linear-gradient(to top,var(--gold-dark),var(--gold));width:60%"></div>
+      <div class="bar-label">${days[i]}</div>
+    </div>
+  `).join('');
+
+  // Game earnings
+  const games=['Pool','Snooker','Chess'];
+  const earnings=[12450,8970,15320];
+  const colors=['#5B99F0','var(--green)','var(--purple)'];
+  const totalEarn=earnings.reduce((a,b)=>a+b,0);
+  document.getElementById('game-earnings').innerHTML=`
+    ${games.map((g,i)=>`
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <span style="width:80px;font-size:13px;font-weight:500">${g}</span>
+        <div style="flex:1;height:8px;background:var(--bg3);border-radius:99px;overflow:hidden">
+          <div style="width:${earnings[i]/totalEarn*100}%;height:100%;background:${colors[i]};border-radius:99px"></div>
+        </div>
+        <span style="font-size:12px;font-weight:600;color:var(--gold);font-family:'JetBrains Mono',monospace">₹${earnings[i].toLocaleString()}</span>
+      </div>
+    `).join('')}
+    <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px;
+      display:flex;justify-content:space-between;font-size:13px;font-weight:600">
+      <span>Total</span>
+      <span class="gold" style="font-family:'JetBrains Mono',monospace">₹${totalEarn.toLocaleString()}</span>
+    </div>
+  `;
+}
+
+function refreshDashboard(){renderDashboard();showToast('✅ Dashboard refreshed!');}
+
+// ============================================================
+// USERS
+// ============================================================
+function renderUsers(){
+  const users=getData(DB.users)||[];
+  const q=document.getElementById('user-search')?.value?.toLowerCase()||'';
+  const filtered=users.filter(u=>u.name.toLowerCase().includes(q)||u.id.toLowerCase().includes(q)||u.phone.includes(q));
+  
+  document.getElementById('user-table-body').innerHTML=filtered.length?filtered.map((u,i)=>`
+    <tr>
+      <td><span style="font-weight:600">${u.name}</span></td>
+      <td class="mono" style="color:var(--text2)">${u.id}</td>
+      <td>${u.phone}</td>
+      <td><span class="gold" style="font-weight:600">₹${u.balance}</span></td>
+      <td>${u.matches} (${u.wins}W)</td>
+      <td><span class="badge ${u.status==='active'?'badge-green':u.status==='blocked'?'badge-red':'badge-gold'}">${u.status}</span>
+      ${u.kyc?`<span class="badge ${u.kyc==='verified'?'badge-green':'badge-gold'}">${u.kyc}</span>`:''}</td>
+      <td>
+        <button class="btn btn-sm ${u.status==='active'?'btn-red':'btn-green'}" onclick="toggleUserStatus(${i})">
+          ${u.status==='active'?'🔒 Block':'🔓 Unblock'}
+        </button>
+      </td>
+    </tr>
+  `).join(''):'<tr><td colspan="7"><div class="empty-state"><div class="icon">🔍</div>Koi user nahi mila</div></td></tr>';
+  
+  document.getElementById('user-badge').textContent=filtered.length;
+}
+
+function toggleUserStatus(idx){
+  const users=getData(DB.users)||[];
+  users[idx].status=users[idx].status==='active'?'blocked':'active';
+  setData(DB.users,users);
+  renderUsers();
+  showToast(`${users[idx].name} ${users[idx].status==='active'?'unblocked':'blocked'}!`);
+}
+
+// ============================================================
+// GAMES
+// ============================================================
+function renderGames(){
+  const config=getData(DB.config);
+  if(!config)return;
+  
+  const games=['pool','snooker','chess'];
+  const icons={pool:'🎱',snooker:'🎱',chess:'♟️'};
+  const names={pool:'Pool',snooker:'Snooker',chess:'Chess'};
+  
+  document.getElementById('game-toggle-cards').innerHTML=games.map(g=>`
+    <div class="stat-card ${config.games[g].locked?'red':'green'}">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div class="stat-icon">${icons[g]}</div>
+          <div class="stat-label">${names[g]}</div>
+          <div class="stat-value" style="font-size:16px;font-weight:600;margin-top:8px">
+            ${config.games[g].locked?'🔒 Locked':'🔓 Active'}
+          </div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" ${!config.games[g].locked?'checked':''} onchange="toggleGame('${g}')">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+  `).join('');
+
+  const levels=['free','starter','standard','pro','advanced','elite'];
+  document.getElementById('fee-table-body').innerHTML=levels.map(l=>`
+    <tr>
+      <td><span class="badge ${l==='free'?'badge-gold':l==='starter'?'badge-gray':l==='standard'?'badge-green':l==='pro'?'badge-blue':l==='advanced'?'badge-gold':'badge-red'}">${l.toUpperCase()}</span></td>
+      <td>${l==='free'?'FREE':`₹${config.levels[l].fee}`}</td>
+      <td>${l==='free'?'—':`₹${config.levels[l].pool}`}</td>
+      <td class="green" style="font-weight:600">${l==='free'?'—':`₹${config.levels[l].winner}`}</td>
+      <td class="red">${l==='free'?'—':`₹${config.levels[l].cut} (${Math.round(config.levels[l].cut/(config.levels[l].pool||1)*100)}%)`}</td>
+      <td><span class="badge ${config.levels[l].active?'badge-green':'badge-red'}">${config.levels[l].active?'Active':'Disabled'}</span></td>
+    </tr>
+  `).join('');
+}
+
+function toggleGame(game){
+  const config=getData(DB.config);
+  config.games[game].locked=!config.games[game].locked;
+  setData(DB.config,config);
+  renderGames();
+  showToast(`${game.charAt(0).toUpperCase()+game.slice(1)} ${config.games[game].locked?'locked':'unlocked'}!`);
+}
+
+function openGameModal(){
+  const config=getData(DB.config);
+  const levels=['free','starter','standard','pro','advanced','elite'];
+  const names={free:'FREE',starter:'STARTER',standard:'STANDARD',pro:'PRO',advanced:'ADVANCED',elite:'ELITE'};
+  
+  document.getElementById('fee-form').innerHTML=levels.map(l=>`
+    <div class="form-group" style="border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-weight:600;font-size:14px">${names[l]}</span>
+        <label class="toggle"><input type="checkbox" ${config.levels[l].active?'checked':''} onchange="document.getElementById('active-${l}').value=this.checked?'true':'false'">
+        <span class="slider"></span></label>
+      </div>
+      <input type="hidden" id="active-${l}" value="${config.levels[l].active}">
+      ${l!=='free'?`
+      <div class="form-row">
+        <div><label class="form-label">Entry Fee (₹)</label><input class="form-input" id="fee-${l}" value="${config.levels[l].fee}" type="number"></div>
+        <div><label class="form-label">Winner Payout (₹)</label><input class="form-input" id="winner-${l}" value="${config.levels[l].winner}" type="number"></div>
+      </div>
+      `:`<div style="font-size:12px;color:var(--text2)">Free mode — koi entry fee nahi, ad revenue only</div>`}
+    </div>
+  `).join('');
+  
+  document.getElementById('game-modal').classList.add('open');
+}
+
+function saveFees(){
+  const config=getData(DB.config);
+  const levels=['free','starter','standard','pro','advanced','elite'];
+  levels.forEach(l=>{
+    if(l!=='free'){
+      const fee=parseInt(document.getElementById('fee-'+l).value)||0;
+      const winner=parseInt(document.getElementById('winner-'+l).value)||0;
+      config.levels[l].fee=fee;
+      config.levels[l].winner=winner;
+      config.levels[l].pool=fee*2;
+      config.levels[l].cut=fee*2-winner;
+    }
+    config.levels[l].active=document.getElementById('active-'+l).value==='true';
+  });
+  setData(DB.config,config);
+  closeModal('game-modal');
+  renderGames();
+  showToast('✅ Fee structure updated!');
+}
+
+// ============================================================
+// PAYMENTS
+// ============================================================
+let paymentTab='deposits';
+
+function switchPaymentTab(tab){
+  paymentTab=tab;
+  document.querySelectorAll('[id^="pay-tab-"]').forEach(b=>{b.style.background='transparent';b.style.color='var(--text2)'});
+  document.getElementById('pay-tab-'+tab).style.background='rgba(201,168,76,0.08)';
+  document.getElementById('pay-tab-'+tab).style.color='var(--gold)';
+  renderPayments(tab);
+}
+
+function renderPayments(tab){
+  const txs=getData(DB.transactions)||[];
+  let filtered=tab==='deposits'?txs.filter(t=>t.type==='deposit'):txs.filter(t=>t.type==='withdrawal');
+  if(!filtered.length)filtered=tab==='deposits'?txs.slice(0,8):txs.filter(t=>t.status==='pending').slice(0,5);
+  
+  document.getElementById('payments-content').innerHTML=`
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>Transaction ID</th><th>Date</th><th>User</th><th>Amount</th><th>Status</th>
+        ${tab==='withdrawals'?'<th>Actions</th>':''}
+      </tr></thead>
+      <tbody>${filtered.map(t=>`
+        <tr>
+          <td class="mono" style="color:var(--text2)">${t.id}</td>
+          <td>${t.date}</td>
+          <td>${t.user}</td>
+          <td class="gold" style="font-weight:600">₹${t.amount}</td>
+          <td><span class="badge ${t.status==='completed'?'badge-green':t.status==='pending'?'badge-gold':'badge-red'}">${t.status}</span></td>
+          ${tab==='withdrawals'?`<td>${t.status==='pending'?`
+            <button class="btn btn-sm btn-green" onclick="showToast('✅ Withdrawal approved!')">Approve</button>
+            <button class="btn btn-sm btn-red" onclick="showToast('❌ Withdrawal rejected!')">Reject</button>
+          `:'—'}</td>`:''}
+        </tr>
+      `).join('')}</tbody></table>
+    </div>
+  `;
+}
+
+// ============================================================
+// MATCHES
+// ============================================================
+function renderMatches(){
+  const matches=getData(DB.matches)||[];
+  document.getElementById('match-table-body').innerHTML=matches.length?matches.map((m,i)=>`
+    <tr>
+      <td class="mono" style="color:var(--text2)">${m.id}</td>
+      <td><span class="chip chip-${m.game.toLowerCase()}">${m.game}</span></td>
+      <td>${m.players.map(p=>p.name).join(' vs ')}</td>
+      <td><span class="badge badge-gold">${m.level}</span></td>
+      <td><span class="badge ${m.status==='in_progress'?'badge-green':m.status==='completed'?'badge-blue':'badge-gold'}">
+        ${m.status==='in_progress'?'<span class="live-dot"></span>Live':m.status}</span></td>
+      <td>
+        <button class="btn btn-sm btn-green" onclick="showToast('Match completed! Winner declared.')">✓ Win</button>
+        <button class="btn btn-sm btn-red" onclick="voidMatch(${i})">✕ Void</button>
+      </td>
+    </tr>
+  `).join(''):'<tr><td colspan="6"><div class="empty-state"><div class="icon">🎮</div>Koi match nahi</div></td></tr>';
+  
+  document.getElementById('match-badge').textContent=matches.filter(m=>m.status==='in_progress').length;
+}
+
+function voidMatch(i){
+  const matches=getData(DB.matches)||[];
+  matches[i].status='void';
+  setData(DB.matches,matches);
+  renderMatches();
+  showToast('✅ Match voided — coins refunded!');
+}
+
+function voidAllMatches(){
+  const matches=getData(DB.matches)||[];
+  matches.forEach(m=>{if(m.status==='in_progress'||m.status==='waiting')m.status='void'});
+  setData(DB.matches,matches);
+  renderMatches();
+  showToast('✅ All matches voided!');
+}
+
+// ============================================================
+// REPORTS
+// ============================================================
+function renderReports(){
+  const txs=getData(DB.transactions)||[];
+  const totalCommission=txs.filter(t=>t.type==='commission').reduce((s,t)=>s+t.amount,0);
+  const totalEntry=txs.filter(t=>t.type==='match_entry').reduce((s,t)=>s+t.amount,0);
+  const totalDeposits=txs.filter(t=>t.type==='deposit').reduce((s,t)=>s+t.amount,0);
+  const totalWithdrawals=txs.filter(t=>t.type==='withdrawal').reduce((s,t)=>s+t.amount,0);
+  
+  document.getElementById('report-stats').innerHTML=`
+    <div class="stat-card gold"><div class="stat-icon">💰</div>
+      <div class="stat-label">Total Commission</div><div class="stat-value">₹${totalCommission.toLocaleString()}</div></div>
+    <div class="stat-card green"><div class="stat-icon">🎮</div>
+      <div class="stat-label">Match Fees Collected</div><div class="stat-value">₹${totalEntry.toLocaleString()}</div></div>
+    <div class="stat-card blue"><div class="stat-icon">💳</div>
+      <div class="stat-label">Total Deposits</div><div class="stat-value">₹${totalDeposits.toLocaleString()}</div></div>
+    <div class="stat-card red"><div class="stat-icon">📤</div>
+      <div class="stat-label">Total Withdrawals</div><div class="stat-value">₹${totalWithdrawals.toLocaleString()}</div></div>
+  `;
+
+  document.getElementById('report-table-body').innerHTML=txs.slice(-10).reverse().map(t=>`
+    <tr>
+      <td>${t.date}</td>
+      <td><span class="badge ${t.type==='deposit'?'badge-green':t.type==='withdrawal'?'badge-red':t.type==='commission'?'badge-gold':t.type==='match_win'?'badge-blue':'badge-gray'}">${t.type}</span></td>
+      <td>${t.user}</td>
+      <td class="gold" style="font-weight:600;font-family:'JetBrains Mono',monospace">₹${t.amount}</td>
+      <td><span class="badge ${t.status==='completed'?'badge-green':t.status==='pending'?'badge-gold':'badge-red'}">${t.status}</span></td>
+    </tr>
+  `).join('');
+}
+
+function exportCSV(){
+  const txs=getData(DB.transactions)||[];
+  let csv='Date,Type,User,Amount,Status\n';
+  txs.forEach(t=>{csv+=`${t.date},${t.type},${t.user},${t.amount},${t.status}\n`});
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='PlayZip_Revenue_Report.csv';
+  a.click();
+  showToast('✅ CSV exported!');
+}
+
+// ============================================================
+// SECURITY
+// ============================================================
+function renderSecurity(){
+  const sec=getData(DB.security);
+  if(!sec)return;
+  
+  document.getElementById('security-stats').innerHTML=`
+    <div class="stat-card red"><div class="stat-icon">⚠️</div>
+      <div class="stat-label">Open Reports</div><div class="stat-value">${sec.reports.filter(r=>r.status==='open').length}</div></div>
+    <div class="stat-card gold"><div class="stat-icon">🔍</div>
+      <div class="stat-label">Investigating</div><div class="stat-value">${sec.reports.filter(r=>r.status==='investigating').length}</div></div>
+    <div class="stat-card blue"><div class="stat-icon">🚫</div>
+      <div class="stat-label">IP Bans</div><div class="stat-value">${sec.ipBans.length}</div></div>
+    <div class="stat-card green"><div class="stat-icon">✅</div>
+      <div class="stat-label">Resolved</div><div class="stat-value">${sec.reports.filter(r=>r.status==='resolved').length}</div></div>
+  `;
+
+  document.getElementById('security-table-body').innerHTML=sec.reports.map((r,i)=>`
+    <tr>
+      <td class="mono" style="color:var(--text2)">${r.id}</td>
+      <td style="font-weight:500">${r.user}</td>
+      <td>${r.type}</td>
+      <td><span class="badge ${r.severity==='critical'?'badge-red':r.severity==='high'?'badge-gold':'badge-blue'}">${r.severity}</span></td>
+      <td><span class="badge ${r.status==='open'?'badge-red':r.status==='investigating'?'badge-gold':'badge-green'}">${r.status}</span></td>
+      <td>
+        <button class="btn btn-sm btn-blue" onclick="if(confirm('Mark as resolved?')){sec.reports[i].status='resolved';setData(DB.security,sec);renderSecurity();showToast('✅ Report resolved!')}">Resolve</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openIPBanModal(){document.getElementById('ip-ban-modal').classList.add('open')}
+
+function banIP(){
+  const ip=document.getElementById('ban-ip-input').value.trim();
+  const reason=document.getElementById('ban-reason-input').value.trim();
+  if(!ip||!reason){showToast('❌ IP aur reason dono bharo!',true);return}
+  const sec=getData(DB.security);
+  sec.ipBans.push({ip,reason,date:new Date().toISOString().split('T')[0]});
+  setData(DB.security,sec);
+  document.getElementById('ban-ip-input').value='';
+  document.getElementById('ban-reason-input').value='';
+  closeModal('ip-ban-modal');
+  renderSecurity();
+  showToast(`🚫 IP ${ip} banned!`);
+}
+
+// ============================================================
+// ADS
+// ============================================================
+function renderAds(){
+  const ads=getData(DB.ads);
+  if(!ads)return;
+  
+  document.getElementById('ad-stats').innerHTML=`
+    <div class="stat-card gold"><div class="stat-icon">📢</div>
+      <div class="stat-label">Ad Placements</div><div class="stat-value">${Object.keys(ads.placements).length}</div></div>
+    <div class="stat-card green"><div class="stat-icon">👍</div>
+      <div class="stat-label">Active</div><div class="stat-value">${Object.values(ads.placements).filter(p=>p.active).length}</div></div>
+    <div class="stat-card blue"><div class="stat-icon">💰</div>
+      <div class="stat-label">Total Earnings</div><div class="stat-value">₹${ads.earnings.toLocaleString()}</div></div>
+    <div class="stat-card purple"><div class="stat-icon">🎁</div>
+      <div class="stat-label">Reward Coins</div><div class="stat-value">${ads.reward.min}-${ads.reward.max}</div></div>
+  `;
+
+  const names={before_game:'Before Game',matchmaking:'Matchmaking',after_game:'After Game',result_screen:'Result Screen',home_banner:'Home Banner',rewarded_ad:'Rewarded Ad'};
+  document.getElementById('ad-table-body').innerHTML=Object.entries(ads.placements).map(([key,val])=>`
+    <tr>
+      <td style="font-weight:500">${names[key]||key}</td>
+      <td><span class="badge badge-blue">${val.type}</span></td>
+      <td><span class="badge ${val.active?'badge-green':'badge-red'}">${val.active?'Active':'Off'}</span></td>
+      <td><label class="toggle"><input type="checkbox" ${val.active?'checked':''} onchange="toggleAd('${key}')"><span class="slider"></span></label></td>
+    </tr>
+  `).join('');
+
+  document.getElementById('reward-min').value=ads.reward.min;
+  document.getElementById('reward-max').value=ads.reward.max;
+  document.getElementById('ad-earnings-display').textContent='₹'+ads.earnings.toLocaleString();
+}
+
+function toggleAd(key){
+  const ads=getData(DB.ads);
+  ads.placements[key].active=!ads.placements[key].active;
+  setData(DB.ads,ads);
+  renderAds();
+  showToast(`${key} ${ads.placements[key].active?'enabled':'disabled'}!`);
+}
+
+function saveAdSettings(){
+  const ads=getData(DB.ads);
+  ads.reward.min=parseInt(document.getElementById('reward-min').value)||1;
+  ads.reward.max=parseInt(document.getElementById('reward-max').value)||5;
+  setData(DB.ads,ads);
+  showToast('✅ Reward settings saved!');
+}
+
+// ============================================================
+// BADGES
+// ============================================================
+function updateBadges(){
+  const users=getData(DB.users)||[];
+  document.getElementById('user-badge').textContent=users.length;
+  const txs=getData(DB.transactions)||[];
+  document.getElementById('withdraw-badge').textContent=txs.filter(t=>t.type==='withdrawal'&&t.status==='pending').length;
+  const matches=getData(DB.matches)||[];
+  document.getElementById('match-badge').textContent=matches.filter(m=>m.status==='in_progress').length;
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+function closeModal(id){
+  document.getElementById(id).classList.remove('open');
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(m=>{
+  m.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open')});
+});
+
+// ============================================================
+// KEYBOARD SHORTCUTS
+// ============================================================
+document.addEventListener('keydown',function(e){
+  if(e.ctrlKey){
+    const pages=['dashboard','users','games','payments','matches','reports','security','ads'];
+    const idx={1:0,2:1,3:2,4:3,5:4,6:5,7:6,8:7};
+    if(e.key in idx){
+      e.preventDefault();
+      const el=document.querySelectorAll('.nav-item')[idx[e.key]];
+      showPage(pages[idx[e.key]],el);
+    }
+  }
+});
+
+console.log('🎮 PlayZip Admin Panel v1.0');
+console.log('🔑 Password: '+MASTER_PASS);
+console.log('⚡ Ctrl+1-8: Quick navigation');
+</script>
+</body>
+</html>
