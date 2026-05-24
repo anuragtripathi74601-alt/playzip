@@ -81,12 +81,11 @@
   }
 </style>
 </head>
-<body>
-
-<div class="header">
+<body>  <div class="header">
   <a href="../app.html" class="back-btn">← Back</a>
   <div class="logo">Play<span>Zip</span> 🎱</div>
   <span class="back-btn" style="background:rgba(201,168,76,0.1);border-color:var(--gold);color:var(--gold);cursor:default">8-Ball</span>
+  <button id="sound-toggle" class="sound-btn" onclick="toggleSound()" style="background:none;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:16px;padding:6px 10px;cursor:pointer;transition:all 0.2s" title="Toggle Sound">🔊</button>
 </div>
 
 <div class="game-layout">
@@ -151,8 +150,21 @@
 // ============================================================
 
 let audioCtx = null;
+let soundEnabled = true;
+
+try { soundEnabled = localStorage.getItem('pz_sound_enabled') !== 'false'; } catch(e) {}
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  try { localStorage.setItem('pz_sound_enabled', soundEnabled); } catch(e) {}
+  const btn = document.getElementById('sound-toggle');
+  if (btn) btn.textContent = soundEnabled ? '🔊' : '🔇';
+  if (!soundEnabled && audioCtx) { try { audioCtx.suspend(); } catch(e) {} }
+  if (soundEnabled && audioCtx && audioCtx.state === 'suspended') { try { audioCtx.resume(); } catch(e) {} }
+}
 
 function initAudio() {
+  if (!soundEnabled) return;
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -1015,6 +1027,12 @@ function lighten(hex) {
 
 initGame();
 setPower(50);
+// Sync sound toggle button state
+if (!soundEnabled) {
+  const sBtn = document.getElementById('sound-toggle');
+  if (sBtn) sBtn.textContent = '🔇';
+}
+
 console.log('🎱 Pool (8-Ball) — Full Game Loaded');
 
 // Read URL params

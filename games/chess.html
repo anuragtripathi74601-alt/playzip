@@ -71,12 +71,11 @@
   }
 </style>
 </head>
-<body>
-
-<div class="header">
+<body>  <div class="header">
   <a href="../app.html" class="back-btn">← Back</a>
   <div class="logo">Play<span>Zip</span> ♟️</div>
   <span class="vs-badge">VS Computer</span>
+  <button id="sound-toggle" class="sound-btn" onclick="toggleSound()" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:16px;padding:6px 10px;cursor:pointer;transition:all 0.2s" title="Toggle Sound">🔊</button>
 </div>
 
 <div class="time-controls" id="time-controls">
@@ -770,8 +769,21 @@ function formatTime(s){
 // ============================================================
 
 let audioCtx = null;
+let soundEnabled = true;
+
+try { soundEnabled = localStorage.getItem('pz_sound_enabled') !== 'false'; } catch(e) {}
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  try { localStorage.setItem('pz_sound_enabled', soundEnabled); } catch(e) {}
+  const btn = document.getElementById('sound-toggle');
+  if (btn) btn.textContent = soundEnabled ? '🔊' : '🔇';
+  if (!soundEnabled && audioCtx) { try { audioCtx.suspend(); } catch(e) {} }
+  if (soundEnabled && audioCtx && audioCtx.state === 'suspended') { try { audioCtx.resume(); } catch(e) {} }
+}
 
 function initAudio() {
+  if (!soundEnabled) return;
   if (!audioCtx) {
     try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
   }
@@ -898,6 +910,12 @@ function saveGameResult(playerWon) {
 // ============================================================
 
 initGame();
+// Sync sound toggle button state
+if (!soundEnabled) {
+  const sBtn = document.getElementById('sound-toggle');
+  if (sBtn) sBtn.textContent = '🔇';
+}
+
 console.log('♟️ Chess Engine loaded — AI depth 3');
 </script>
 </body>
