@@ -387,7 +387,10 @@ function makeMove(fr, fc, tr, tc, promotionPiece=null){
   moveHistory.push(snap);
   
   // Capture
-  if(captured){(isWhite(captured)?capturedWhite:capturedBlack).push(captured)}
+  if(captured){
+    (isWhite(captured)?capturedWhite:capturedBlack).push(captured);
+    playCapture();
+  }
   
   // En passant capture
   if(t==='P' && enPassantTarget && tr===enPassantTarget.row && tc===enPassantTarget.col){
@@ -399,6 +402,7 @@ function makeMove(fr, fc, tr, tc, promotionPiece=null){
   // Move piece
   board[tr][tc]=piece;
   board[fr][fc]=null;
+  playMove();
   
   // Pawn promotion
   if(t==='P' && (tr===0||tr===7)){
@@ -416,6 +420,7 @@ function makeMove(fr, fc, tr, tc, promotionPiece=null){
   if(t==='K' && Math.abs(tc-fc)===2){
     if(tc>fc){board[tr][tc-1]=board[tr][7];board[tr][7]=null}
     else{board[tr][tc+1]=board[tr][0];board[tr][0]=null}
+    playCastle();
   }
   
   // Update castling rights
@@ -434,6 +439,11 @@ function makeMove(fr, fc, tr, tc, promotionPiece=null){
   renderStatus();
   updateMoveHistory();
   updateCaptured();
+  
+  // Check if opponent is in check
+  if(isInCheck(board, turn)) {
+    setTimeout(() => playCheck(), 100);
+  }
   
   if(turn==='b' && !gameOver){
     setTimeout(()=>aiMove(), 300);
@@ -675,6 +685,7 @@ function renderStatus(){
   }
   if(isInCheck(board,turn)){
     el.textContent=`⚠️ ${turn==='w'?'White':'Black'} is in CHECK!`;
+    // Don't play check sound here — it's played from makeMove
     return;
   }
   if(turn==='w') el.textContent='Your turn — Select a piece';
@@ -684,9 +695,12 @@ function renderStatus(){
   if(!hasLegalMoves(board,turn)){
     gameOver=true;
     if(isInCheck(board,turn)) {
-      saveGameResult(turn === 'b'); // White wins if black is in checkmate, Black wins if white is in checkmate
+      const playerWon = (turn === 'b');
+      if (playerWon) playWin(); else playLose();
+      saveGameResult(playerWon);
       el.textContent='🏆 '+(turn==='w'?'Black':'White')+' wins by checkmate!';
     } else {
+      playDraw();
       saveGameResult(false); // Stalemate — no winner
       el.textContent='🤝 Stalemate — Draw!';
     }
@@ -727,12 +741,12 @@ function tick(){
   if(gameOver) return;
   if(turn==='w'){
     whiteTime--;
-    if(whiteTime<=0){gameOver=true;saveGameResult(false);document.getElementById('status').textContent='⏰ Time up! Black wins!';clearInterval(timerInterval)}
+    if(whiteTime<=0){gameOver=true;playTimeUp();playLose();saveGameResult(false);document.getElementById('status').textContent='⏰ Time up! Black wins!';clearInterval(timerInterval)}
     document.getElementById('white-time').textContent=formatTime(whiteTime);
     document.getElementById('white-time').className='player-time'+(whiteTime<=30?' low':'');
   } else {
     blackTime--;
-    if(blackTime<=0){gameOver=true;saveGameResult(true);document.getElementById('status').textContent='⏰ Time up! White wins!';clearInterval(timerInterval)}
+    if(blackTime<=0){gameOver=true;playTimeUp();playWin();saveGameResult(true);document.getElementById('status').textContent='⏰ Time up! White wins!';clearInterval(timerInterval)}
     document.getElementById('black-time').textContent=formatTime(blackTime);
     document.getElementById('black-time').className='player-time'+(blackTime<=30?' low':'');
   }
@@ -746,6 +760,109 @@ function formatTime(s){
   const m=Math.floor(s/60);
   const sec=s%60;
   return m+':'+(sec<10?'0':'')+sec;
+}
+
+// ============================================================
+// SOUND EFFECTS — Web Audio API (no external files)
+// ============================================================
+
+let audioCtx = null;
+
+function initAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+}
+
+function playTone(freq, duration, type, volume) {
+  try {
+    initAudio();
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gain.gain.setValueAtTime(volume || 0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+  } catch(e) {}
+}
+
+function playNoise(duration, volume) {
+  try {
+    initAudio();
+    if (!audioCtx) return;
+    const bufferSize = audioCtx.sampleRate * duration;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+    }
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(volume || 0.06, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+    source.connect(gain);
+    gain.connect(audioCtx.destination);
+    source.start();
+  } catch(e) {}
+}
+
+function playSelect() {
+  playTone(600, 0.08, 'sine', 0.08);
+}
+
+function playMove() {
+  playTone(440, 0.12, 'sine', 0.12);
+  playNoise(0.04, 0.04);
+}
+
+function playCapture() {
+  playTone(330, 0.15, 'square', 0.10);
+  playTone(220, 0.2, 'sawtooth', 0.06);
+  playNoise(0.06, 0.05);
+}
+
+function playCheck() {
+  playTone(880, 0.1, 'sine', 0.1);
+  setTimeout(() => playTone(1100, 0.15, 'sine', 0.1), 80);
+}
+
+function playCastle() {
+  playTone(523, 0.1, 'sine', 0.1);
+  setTimeout(() => playTone(659, 0.1, 'sine', 0.1), 60);
+  setTimeout(() => playTone(784, 0.15, 'sine', 0.1), 120);
+}
+
+function playWin() {
+  const notes = [523, 659, 784, 1047]; // C5 E5 G5 C6
+  notes.forEach((n, i) => {
+    setTimeout(() => playTone(n, 0.3, 'sine', 0.15), i * 120);
+  });
+}
+
+function playLose() {
+  const notes = [784, 659, 523, 440]; // Descending
+  notes.forEach((n, i) => {
+    setTimeout(() => playTone(n, 0.3, 'sine', 0.12), i * 150);
+  });
+}
+
+function playDraw() {
+  playTone(440, 0.2, 'triangle', 0.1);
+  setTimeout(() => playTone(440, 0.2, 'triangle', 0.1), 200);
+}
+
+function playTimeUp() {
+  playTone(200, 0.3, 'sawtooth', 0.08);
+  setTimeout(() => playTone(150, 0.4, 'sawtooth', 0.08), 200);
 }
 
 // ============================================================
