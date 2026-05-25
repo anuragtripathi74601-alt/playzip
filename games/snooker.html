@@ -42,9 +42,9 @@
   .pocket:nth-child(5){bottom:-7px;left:50%;transform:translateX(-50%)}.pocket:nth-child(6){bottom:-7px;right:-7px}
 
   #ball-container{position:absolute;inset:0;cursor:crosshair}
-  .ball{position:absolute;width:clamp(13px,3.2vw,20px);height:clamp(13px,3.2vw,20px);border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:inset -2px -2px 4px rgba(0,0,0,0.5),inset 2px 2px 4px rgba(255,255,255,0.15),0 1px 4px rgba(0,0,0,0.3);z-index:2;transition:left 0.05s,top 0.05s}
-  .ball.re-spotted{animation:reSpot 0.5s ease}
-  .ball.potted{opacity:0;pointer-events:none;transition:opacity 0.4s}
+  .ball{position:absolute;width:clamp(13px,3.2vw,20px);height:clamp(13px,3.2vw,20px);border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:inset -2px -2px 4px rgba(0,0,0,0.5),inset 2px 2px 4px rgba(255,255,255,0.15),0 1px 4px rgba(0,0,0,0.3);z-index:2}
+  .ball.re-spotted{animation:reSpot 0.3s ease}
+  .ball.potted{opacity:0;pointer-events:none}
   #cue-ball{cursor:pointer;z-index:5}
   #cue-ball.aiming{box-shadow:0 0 16px var(--gold),inset -2px -2px 4px rgba(0,0,0,0.4)}
   @keyframes reSpot{0%{opacity:0;transform:translate(-50%,-50%) scale(0.3)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
@@ -426,19 +426,34 @@ function resetGame() { initGame(); }
 // RENDER
 // ============================================================
 
-function render() {
-  // Remove all balls except cue ball and cue line
-  ballContainer.querySelectorAll('.ball:not(#cue-ball)').forEach(b => b.remove());
+// Ball element cache for performance
+let snookerBallEls = new Map();
 
-  // Render all non-potted balls
+function render() {
+  const activeBalls = {};
+  Object.values(balls).forEach(b => { if (!b.potted) activeBalls[b.name] = b; });
+  
+  // Remove elements for potted balls
+  snookerBallEls.forEach((el, name) => {
+    if (!activeBalls[name]) {
+      el.remove();
+      snookerBallEls.delete(name);
+    }
+  });
+  
+  // Create/update elements for active balls
   Object.values(balls).forEach(b => {
     if (b.potted) return;
-    const el = document.createElement('div');
-    el.className = 'ball';
+    let el = snookerBallEls.get(b.name);
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'ball';
+      el.style.background = b.bg;
+      ballContainer.appendChild(el);
+      snookerBallEls.set(b.name, el);
+    }
     el.style.left = b.x + '%';
     el.style.top = b.y + '%';
-    el.style.background = b.bg;
-    ballContainer.appendChild(el);
   });
 
   // Render cue ball
@@ -799,8 +814,10 @@ function physicsLoop() {
 
   render();
 
-  if (moving && (Math.abs(cue.vx) > 0.02 || Math.abs(cue.vy) > 0.02 ||
-    Object.values(balls).reduce((s,b) => s + Math.abs(b.vx) + Math.abs(b.vy), 0) > 0.02)) {
+  const totalSpeed = Math.abs(cue.vx) + Math.abs(cue.vy) +
+    Object.values(balls).reduce((s,b) => s + Math.abs(b.vx) + Math.abs(b.vy), 0);
+  
+  if (totalSpeed > 0.02) {
     requestAnimationFrame(physicsLoop);
   } else {
     cue.vx = 0; cue.vy = 0;

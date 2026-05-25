@@ -37,10 +37,10 @@
   .pocket:nth-child(5){bottom:-7px;left:50%;transform:translateX(-50%)}.pocket:nth-child(6){bottom:-7px;right:-7px}
 
   #ball-container{position:absolute;inset:0;cursor:crosshair}
-  .ball{position:absolute;width:clamp(13px,3.2vw,20px);height:clamp(13px,3.2vw,20px);border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:inset -2px -2px 4px rgba(0,0,0,0.5),inset 2px 2px 4px rgba(255,255,255,0.15),0 1px 4px rgba(0,0,0,0.3);z-index:2;transition:left 0.05s,top 0.05s}
+  .ball{position:absolute;width:clamp(13px,3.2vw,20px);height:clamp(13px,3.2vw,20px);border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:inset -2px -2px 4px rgba(0,0,0,0.5),inset 2px 2px 4px rgba(255,255,255,0.15),0 1px 4px rgba(0,0,0,0.3);z-index:2}
   .ball.hoverable{pointer-events:auto;cursor:pointer}
   .ball.ghost{opacity:0.5;z-index:3}
-  .ball.potted{opacity:0;pointer-events:none;transition:opacity 0.3s}
+  .ball.potted{opacity:0;pointer-events:none}
   #cue-ball{cursor:pointer;z-index:5}
   #cue-ball:hover{box-shadow:0 0 12px rgba(201,168,76,0.3),inset -2px -2px 4px rgba(0,0,0,0.4)}
   #cue-ball.aiming{box-shadow:0 0 16px var(--gold),inset -2px -2px 4px rgba(0,0,0,0.4)}
@@ -379,19 +379,34 @@ function resetGame() { initGame(); }
 // RENDER
 // ============================================================
 
-function render() {
-  // Remove all balls except cue ball and cue line
-  ballContainer.querySelectorAll('.ball:not(#cue-ball)').forEach(b => b.remove());
+// Ball element cache for performance (reuse DOM elements instead of recreating every frame)
+let ballEls = new Map();
 
-  // Render object balls
+function render() {
+  const activeBalls = {};
+  Object.values(balls).forEach(b => { if (!b.potted) activeBalls[b.num] = b; });
+  
+  // Remove elements for potted balls
+  ballEls.forEach((el, num) => {
+    if (!activeBalls[num]) {
+      el.remove();
+      ballEls.delete(num);
+    }
+  });
+  
+  // Create/update elements for active balls
   Object.values(balls).forEach(b => {
     if (b.potted) return;
-    const el = document.createElement('div');
-    el.className = 'ball';
+    let el = ballEls.get(b.num);
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'ball';
+      el.style.background = b.bg;
+      ballContainer.appendChild(el);
+      ballEls.set(b.num, el);
+    }
     el.style.left = b.x + '%';
     el.style.top = b.y + '%';
-    el.style.background = b.bg;
-    ballContainer.appendChild(el);
   });
 
   // Render cue ball
@@ -796,8 +811,11 @@ function physicsLoop() {
 
   render();
 
-  if (anyMoving && Math.abs(cue.vx) + Math.abs(cue.vy) + 
-    Object.values(balls).reduce((s,b) => s + Math.abs(b.vx) + Math.abs(b.vy), 0) > 0.02) {
+  // Check if anything is still moving (including recently hit balls)
+  const totalSpeed = Math.abs(cue.vx) + Math.abs(cue.vy) + 
+    Object.values(balls).reduce((s,b) => s + Math.abs(b.vx) + Math.abs(b.vy), 0);
+  
+  if (totalSpeed > 0.02) {
     requestAnimationFrame(physicsLoop);
   } else {
     // Stop everything
@@ -968,46 +986,54 @@ function aiTurn() {
   const myBalls = aiGroup === 'solids' ? SOLIDS : STRIPES;
   const targetBalls = myBalls.filter(n => balls[n] && !balls[n].potted);
 
-  // 🐛 FIX: Better AI logic with varying skill based on remaining balls
+  // Better AI logic with varying skill based on remaining balls
   const remainingCount = targetBalls.length;
-  // AI gets better as fewer balls remain (easier to see patterns)
-  const baseSkill = remainingCount <= 2 ? 0.6 : remainingCount <= 4 ? 0.45 : 0.35;
+  // AI gets better as fewer balls remain
+  const baseSkill = remainingCount <= 2 ? 0.65 : remainingCount <= 4 ? 0.50 : 0.40;
   const success = Math.random() < baseSkill;
 
   if (success && targetBalls.length > 0) {
-    // Pick the ball closest to a pocket (simplified: pick a ball)
-    const target = targetBalls.reduce((best, n) => {
-      const b = balls[n];
-      // Favor easier pocketing positions (higher y = closer to bottom pockets)
-      // Just pick a reasonable ball
-      return Math.random() < 0.5 ? n : best;
-    }, targetBalls[Math.floor(Math.random() * targetBalls.length)]);
+    // AI prefers balls near center (easier to pot) and avoids tight clusters
+    const sorted = targetBalls.sort((a, b) => {
+      const ba = balls[a], bb = balls[b];
+      // Prefer balls closer to center of table for easier potting
+      const da = Math.abs(ba.x - 50) + Math.abs(ba.y - 50);
+      const db = Math.abs(bb.x - 50) + Math.abs(bb.y - 50);
+      return da - db;
+    });
+    
+    // Pick from top 3 easiest or random if fewer
+    const pickFrom = Math.min(3, sorted.length);
+    const target = sorted[Math.floor(Math.random() * pickFrom)];
     
     balls[target].potted = true;
     state.oppPotted++;
+    playPocket();
 
     const remaining = myBalls.filter(n => balls[n] && !balls[n].potted).length;
     
     // On last ball, try for 8-ball
     if (remaining === 0) {
-      const eightBallChance = 0.35 + (Math.random() * 0.15); // 35-50%
+      const eightBallChance = 0.50; // 50% chance
       if (Math.random() < eightBallChance) {
         balls[8].potted = true;
+        updateScoreUI();
+        render();
         playWin();
         gameOver('opponent', '🤖 AI potted the 8-ball!');
         return;
       }
-      setStatus(`🤖 AI missed the 8-ball! Your chance!`);
+      setStatus('🤖 AI missed the 8-ball! Your chance!');
     } else {
-      setStatus(`🤖 AI potted a ball! ${remaining} ball(s) remaining.`);
+      setStatus('🤖 AI potted a ball! ' + remaining + ' ball(s) remaining.');
     }
     
     updateScoreUI();
     render();
 
-    // AI continues if it potted its own ball — with a chance to miss the next
-    const continueChance = remaining > 0 ? 0.35 + (remainingCount <= 3 ? 0.2 : 0) : 0;
-    if (remaining > 0 && Math.random() < continueChance && remaining > 0) {
+    // AI continues turn if it potted its own ball
+    const continueChance = remainingCount <= 3 ? 0.50 : 0.35;
+    if (remaining > 0 && Math.random() < continueChance) {
       state.turn = 'opponent';
       setTimeout(() => {
         if (!state.gameOver) aiTurn();
@@ -1015,13 +1041,9 @@ function aiTurn() {
       return;
     }
     
-    // After potting, check if AI should continue or pass
-    if (remaining > 0) {
-      // Pass turn after potting — realistic: AI doesn't always run the table
-      state.turn = 'player';
-    }
+    state.turn = 'player';
   } else {
-    const foulAI = Math.random() < 0.12;
+    const foulAI = Math.random() < 0.08;
     if (foulAI) {
       setStatus('🤖 AI scratch! Ball-in-hand for you! 🎉');
       state.ballInHand = true;
