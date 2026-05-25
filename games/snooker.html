@@ -557,7 +557,7 @@ function render() {
 function renderCueStick() {
   if (!cueStickWrapper || !cueStick) return;
 
-  if (state.gameOver || state.turn !== 'player' || state.phase === 'moving' || state.ballInHand || state.aimX === null) {
+  if (state.gameOver || state.phase === 'moving' || state.ballInHand || state.aimX === null) {
     cueStickWrapper.classList.remove('show');
     return;
   }
@@ -615,7 +615,7 @@ function findTargetBall(aimX, aimY) {
 function renderTargetHighlight() {
   ballContainer.querySelectorAll('.ball.target-highlight').forEach(el => el.classList.remove('target-highlight'));
   
-  if (state.gameOver || state.turn !== 'player' || state.aimX === null || state.ballInHand) return;
+  if (state.gameOver || state.aimX === null || state.ballInHand) return;
   if (state.phase === 'moving') return;
   
   const target = findTargetBall(state.aimX, state.aimY);
@@ -1109,6 +1109,8 @@ function handleFoul() {
 function endTurn() {
   state.turn = 'opponent';
   state.aimX = null;
+  // 🐛 FIX: Restore correct phase so AI can determine its game state
+  state.phase = state.redsRemaining > 0 ? 'reds' : 'colors';
   $('player-box').classList.remove('active');
   $('opp-box').classList.add('active');
 
@@ -1122,115 +1124,214 @@ function endTurn() {
 }
 
 // ============================================================
-// AI
+// AI — Improved with visible shot simulation
 // ============================================================
 
 function aiTurn() {
   if (state.gameOver) return;
 
-  const success = Math.random() < 0.35;
+  // 🐛 FIXED: Derive phase from game state, not state.phase (which gets set to 'idle' in endShot)
+  const currentPhase = state.redsRemaining > 0 ? 'reds' : 'colors';
+  
+  // Show AI thinking with visual cue direction
+  const success = Math.random() < 0.38;
 
-  if (state.phase === 'reds') {
-    // 🐛 FIX: Save gamePhase before AI modifies it
-    const gamePhase = 'reds';
-    
+  if (currentPhase === 'reds') {
     if (state.nextBall === 'red') {
-      if (success && state.redsRemaining > 0) {
-        // AI pots a red — correct in snooker
-        state.oppScore += 1;
-        state.redsRemaining--;
-        state.nextBall = 'color';
-        state.shotHistory.push('🤖 AI pot red (+1)');
-        setStatus(`🤖 AI potted a red! (${state.redsRemaining} left)`);
-
-        // If no reds left, transition to colors phase
-        if (state.redsRemaining <= 0) {
-          state.phase = 'colors';
-          state.nextBall = 'yellow';
-          setStatus('🟡 All reds done! AI needs to pot colors in order.');
-          updateUI();
-        }
-      } else {
-        // AI misses or fouls
-        if (Math.random() < 0.12) {
-          state.playerScore += 4;
-          state.shotHistory.push('🤖 AI foul (-4)');
-          setStatus('🚫 AI foul! 4 points to you!');
-          state.ballInHand = true;
-        } else {
-          state.shotHistory.push('🤖 AI miss');
-          setStatus('🤖 AI missed! Your turn.');
+      // Aim toward red balls
+      const redBalls = Object.entries(balls).filter(([k, b]) => k.startsWith('red_') && !b.potted);
+      if (redBalls.length > 0 && success) {
+        // Point cue toward a red ball
+        const targetBall = redBalls[Math.floor(Math.random() * redBalls.length)][1];
+        const dx = targetBall.x - cue.x;
+        const dy = targetBall.y - cue.y;
+        const len = Math.sqrt(dx*dx + dy*dy);
+        if (len > 1) {
+          const aimLen = Math.max(len * 1.5, 30);
+          state.aimX = cue.x + (dx / len) * aimLen;
+          state.aimY = cue.y + (dy / len) * aimLen;
+          state.phase = 'aim';
         }
       }
+      
+      setStatus('🤖 Bot aiming... 🔴');
+      render();
+      
+      setTimeout(() => {
+        if (state.gameOver) return;
+        setStatus('🤖 Bot shoots! 💥');
+        state.phase = 'moving';
+        state.aimX = null;
+        render();
+        playCueShot();
+        
+        setTimeout(() => {
+          if (state.gameOver) return;
+          if (success && state.redsRemaining > 0) {
+            state.oppScore += 1;
+            state.redsRemaining--;
+            state.nextBall = 'color';
+            state.shotHistory.push('🤖 Bot pot red (+1)');
+            setStatus(`🤖 Bot potted a red! (${state.redsRemaining} left)`);
+            
+            if (state.redsRemaining <= 0) {
+              state.phase = 'colors';
+              state.nextBall = 'yellow';
+              setStatus('🟡 All reds done! Colors phase starts!');
+              updateUI();
+            }
+            playPocket();
+            finishAiTurnSnooker();
+          } else {
+            if (Math.random() < 0.12) {
+              state.playerScore += 4;
+              state.shotHistory.push('🤖 Bot foul (-4)');
+              setStatus('🚫 Bot foul! 4 points to you!');
+              state.ballInHand = true;
+            } else {
+              state.shotHistory.push('🤖 Bot miss');
+              setStatus('🤖 Bot missed! Your turn.');
+            }
+            finishAiTurnSnooker();
+          }
+        }, 600);
+      }, 800);
     } else {
       // AI needs to pot a color (after a red)
-      if (success) {
-        // 🐛 FIX: AI should pot the highest available color for maximum points
-        // but have some randomness to make it beatable
-        const available = ['yellow','green','brown','blue','pink','black'];
-        // Weight towards higher value colors
-        const weights = [5, 5, 10, 20, 25, 35];
-        let totalWeight = weights.reduce((a,b) => a+b, 0);
-        let rand = Math.random() * totalWeight;
-        let picked = available[available.length - 1];
-        for (let i = 0; i < available.length; i++) {
-          rand -= weights[i];
-          if (rand <= 0) { picked = available[i]; break; }
-        }
-        const pts = BALLS_DEF[picked].pts;
-        state.oppScore += pts;
-        state.nextBall = 'red';
-        reSpotColor(picked);
-        state.shotHistory.push(`🤖 AI pot ${picked} (+${pts})`);
-        setStatus(`🤖 AI potted ${picked}! Re-spotted.`);
-      } else {
-        if (Math.random() < 0.1) {
-          const penalty = 4 + Math.floor(Math.random() * 4);
-          state.playerScore += penalty;
-          state.shotHistory.push(`🤖 AI foul (-${penalty})`);
-          setStatus(`🚫 AI foul! ${penalty} points to you!`);
-          state.ballInHand = true;
-        } else {
-          state.shotHistory.push('🤖 AI miss');
-          setStatus('🤖 AI missed! Your turn.');
+      // Aim toward available colors
+      const availableColors = ['yellow','green','brown','blue','pink','black'].filter(c => {
+        const b = balls[c];
+        // In reds phase, colors are always available (re-spotted)
+        return true;
+      });
+      const targetColor = availableColors[Math.floor(Math.random() * availableColors.length)];
+      const targetBall = balls[targetColor];
+      if (targetBall) {
+        const dx = targetBall.x - cue.x;
+        const dy = targetBall.y - cue.y;
+        const len = Math.sqrt(dx*dx + dy*dy);
+        if (len > 1) {
+          const aimLen = Math.max(len * 1.5, 30);
+          state.aimX = cue.x + (dx / len) * aimLen;
+          state.aimY = cue.y + (dy / len) * aimLen;
+          state.phase = 'aim';
         }
       }
+      
+      setStatus('🤖 Bot aiming for a color... 🎨');
+      render();
+      
+      setTimeout(() => {
+        if (state.gameOver) return;
+        setStatus('🤖 Bot shoots! 💥');
+        state.phase = 'moving';
+        state.aimX = null;
+        render();
+        playCueShot();
+        
+        setTimeout(() => {
+          if (state.gameOver) return;
+          if (success) {
+            const available = ['yellow','green','brown','blue','pink','black'];
+            const weights = [5, 5, 10, 20, 25, 35];
+            let totalWeight = weights.reduce((a,b) => a+b, 0);
+            let rand = Math.random() * totalWeight;
+            let picked = available[available.length - 1];
+            for (let i = 0; i < available.length; i++) {
+              rand -= weights[i];
+              if (rand <= 0) { picked = available[i]; break; }
+            }
+            const pts = BALLS_DEF[picked].pts;
+            state.oppScore += pts;
+            state.nextBall = 'red';
+            reSpotColor(picked);
+            state.shotHistory.push(`🤖 Bot pot ${picked} (+${pts})`);
+            setStatus(`🤖 Bot potted ${picked}! Re-spotted. 🔴`);
+            playPocket();
+          } else {
+            if (Math.random() < 0.1) {
+              const penalty = 4 + Math.floor(Math.random() * 4);
+              state.playerScore += penalty;
+              state.shotHistory.push(`🤖 Bot foul (-${penalty})`);
+              setStatus(`🚫 Bot foul! ${penalty} points to you!`);
+              state.ballInHand = true;
+            } else {
+              state.shotHistory.push('🤖 Bot miss');
+              setStatus('🤖 Bot missed! Your turn.');
+            }
+          }
+          finishAiTurnSnooker();
+        }, 600);
+      }, 800);
     }
-  } else if (state.phase === 'colors') {
-    // 🐛 FIX: AI must pot colors IN ORDER in colors phase
+  } else if (currentPhase === 'colors') {
+    // Colors phase
     const idx = COLOR_ORDER.indexOf(state.nextBall);
     if (idx >= 0) {
       const target = COLOR_ORDER[idx];
-      if (Math.random() < 0.3) {
-        const pts = BALLS_DEF[target].pts;
-        state.oppScore += pts;
-        state.shotHistory.push(`🤖 AI pot ${target} (+${pts})`);
-
-        if (idx < COLOR_ORDER.length - 1) {
-          state.nextBall = COLOR_ORDER[idx + 1];
-          setStatus(`🤖 AI potted ${target}! Next: ${COLOR_ORDER[idx+1]}`);
-        } else {
-          // Last color (Black) potted — game over
-          state.phase = 'over';
-          state.gameOver = true;
-          const win = state.playerScore > state.oppScore;
-          showGameOver(win, `Final score: ${state.playerScore} - ${state.oppScore}`);
-          setStatus(win ? '🏆 You win!' : '💀 Opponent wins!');
-          updateUI();
-          render();
-          return;
+      const targetBall = balls[target];
+      if (targetBall && !targetBall.potted) {
+        const dx = targetBall.x - cue.x;
+        const dy = targetBall.y - cue.y;
+        const len = Math.sqrt(dx*dx + dy*dy);
+        if (len > 1) {
+          const aimLen = Math.max(len * 1.5, 30);
+          state.aimX = cue.x + (dx / len) * aimLen;
+          state.aimY = cue.y + (dy / len) * aimLen;
+          state.phase = 'aim';
         }
-      } else {
-        state.shotHistory.push('🤖 AI miss');
-        setStatus('🤖 AI missed! Your turn.');
       }
+      
+      setStatus(`🤖 Bot aiming for ${target}... 🎯`);
+      render();
+      
+      setTimeout(() => {
+        if (state.gameOver) return;
+        setStatus('🤖 Bot shoots! 💥');
+        state.phase = 'moving';
+        state.aimX = null;
+        render();
+        playCueShot();
+        
+        setTimeout(() => {
+          if (state.gameOver) return;
+          if (Math.random() < 0.3 && targetBall && !targetBall.potted) {
+            const pts = BALLS_DEF[target].pts;
+            state.oppScore += pts;
+            balls[target].potted = true;
+            state.shotHistory.push(`🤖 Bot pot ${target} (+${pts})`);
+            playPocket();
+            
+            if (idx < COLOR_ORDER.length - 1) {
+              state.nextBall = COLOR_ORDER[idx + 1];
+              setStatus(`🤖 Bot potted ${target}! Next: ${COLOR_ORDER[idx+1]}`);
+            } else {
+              state.phase = 'over';
+              state.gameOver = true;
+              const win = state.playerScore > state.oppScore;
+              showGameOver(win, `Final score: ${state.playerScore} - ${state.oppScore}`);
+              setStatus(win ? '🏆 You win!' : '💀 Bot wins!');
+              updateUI();
+              render();
+              return;
+            }
+          } else {
+            state.shotHistory.push('🤖 Bot miss');
+            setStatus('🤖 Bot missed! Your turn.');
+          }
+          finishAiTurnSnooker();
+        }, 600);
+      }, 800);
+    } else {
+      finishAiTurnSnooker();
     }
+  } else {
+    finishAiTurnSnooker();
   }
+}
 
-  // Check if reds phase ended
+function finishAiTurnSnooker() {
   checkRedsPhaseOver();
-
-  // Switch to player
   state.turn = 'player';
   $('player-box').classList.add('active');
   $('opp-box').classList.remove('active');
@@ -1239,7 +1340,9 @@ function aiTurn() {
   state.ballInHand = state.ballInHand || false;
   updateUI();
   render();
-  setStatus(state.ballInHand ? '🎱 Ball-in-hand! Cue ball place karo!' : '🎱 Your turn! Freely move mouse to aim, click to shoot!');
+  setStatus(state.ballInHand 
+    ? '🎱 Ball-in-hand! Cue ball place karo!' 
+    : '🎱 Your turn! Freely move mouse to aim, click to shoot!');
 }
 
 // ============================================================

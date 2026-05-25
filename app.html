@@ -645,8 +645,8 @@
 <!-- MODALS -->
 <div class="modal-overlay center" id="modal-matchmaking">
   <div class="modal center" style="text-align:center">
-    <div style="font-size:48px;margin-bottom:12px">🔍</div>
-    <div class="modal-title">Finding Opponent...</div>
+    <div style="font-size:48px;margin-bottom:12px" id="mm-search-icon">🔍</div>
+    <div class="modal-title" id="mm-title">Finding Opponent...</div>
     <div class="modal-sub" id="mm-level">STARTER — ₹50 Entry</div>
     <div style="display:flex;align-items:center;justify-content:center;gap:24px;margin:24px 0">
       <div style="text-align:center">
@@ -655,9 +655,12 @@
       </div>
       <div style="font-size:24px;color:var(--text3)">VS</div>
       <div style="text-align:center">
-        <div style="width:48px;height:48px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;margin:0 auto 6px;font-size:20px">❓</div>
-        <div style="font-size:12px;font-weight:600">Searching...</div>
+        <div style="width:48px;height:48px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;margin:0 auto 6px;font-size:20px" class="mm-opp-av">❓</div>
+        <div style="font-size:12px;font-weight:600" class="mm-opp-name">Searching...</div>
       </div>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:8px" id="mm-status">
+      Searching for a real opponent...
     </div>
     <div style="font-size:12px;color:var(--text2);margin-bottom:16px">
       <span class="gold" id="mm-timer">⏱️ 0s</span> elapsed
@@ -992,48 +995,67 @@ function selectLevel(level){
     return;
   }
   
-  // Show matchmaking briefly then redirect to game
   document.getElementById('mm-level').textContent = `${level.toUpperCase()} — ${level==='free'?'FREE':`₹${entry} Entry`}`;
-  document.getElementById('modal-matchmaking').classList.add('open');      const gameUrls = { pool:'games/pool.html', snooker:'games/snooker.html', chess:'games/chess.html' };
-      const url = gameUrls[selectedGame];
-      // Cache-busting: ensure latest game file is loaded
-      const cacheBuster = 'v=' + Date.now();
-      
-      // Save game session so the game page can save results back
-      // Save game session so the game page can save results back
-      const session = {
-        userId: u.id,
-        game: selectedGame,
-        level: level,
-        fee: entry,
-        payout: payout,
-        mode: '1v1'
-      };
-      setData('pz_game_session', session);
-      
-      // ⚡ Wallet Lock: Lock the entry fee amount during match
-      if(level !== 'free' && entry > 0) {
-        const currentLock = u.lockedBalance || 0;
-        updateUser({ lockedBalance: currentLock + entry });
-        console.log(`🔒 Wallet locked: ₹${entry} for ${selectedGame} match`);
-      }
-      
-      if(level!=='free'){
-        updateUser({balance: (u.balance||0) - entry});
-        addTransaction('match_entry', -entry, `${selectedGame} match entry`);
-      }
-      
-      // Simulate matchmaking briefly
-      let sec = 0;
-      const timer = setInterval(()=>{
-        sec++;
-        document.getElementById('mm-timer').textContent = `⏱️ ${sec}s`;
-        if(sec >= 3){
-          clearInterval(timer);
-          document.getElementById('modal-matchmaking').classList.remove('open');
-          window.location.href = url + `?mode=1v1&level=${level}&fee=${entry}&payout=${payout}&${cacheBuster}`;
-        }
-      }, 1000);
+  document.getElementById('modal-matchmaking').classList.add('open');
+  
+  const gameUrls = { pool:'games/pool.html', snooker:'games/snooker.html', chess:'games/chess.html' };
+  const url = gameUrls[selectedGame];
+  const cacheBuster = 'v=' + Date.now();
+  
+  const session = {
+    userId: u.id,
+    game: selectedGame,
+    level: level,
+    fee: entry,
+    payout: payout,
+    mode: 'vsbot'
+  };
+  setData('pz_game_session', session);
+  
+  // ⚡ Wallet Lock
+  if(level !== 'free' && entry > 0) {
+    const currentLock = u.lockedBalance || 0;
+    updateUser({ lockedBalance: currentLock + entry });
+  }
+  
+  if(level!=='free'){
+    updateUser({balance: (u.balance||0) - entry});
+    addTransaction('match_entry', -entry, `${selectedGame} match entry`);
+  }
+  
+  // 🔍 MATCHMAKING FLOW: Search for opponent → Bot fallback
+  let sec = 0;
+  const oppAv = document.querySelector('#modal-matchmaking .mm-opp-av');
+  const oppName = document.querySelector('#modal-matchmaking .mm-opp-name');
+  const timer = setInterval(()=>{
+    sec++;
+    document.getElementById('mm-timer').textContent = `⏱️ ${sec}s`;
+    
+    if(sec === 1) {
+      document.getElementById('mm-title').textContent = 'Finding Opponent...';
+      document.getElementById('mm-status').textContent = 'Searching for a real opponent...';
+    }
+    else if(sec === 3) {
+      document.getElementById('mm-status').textContent = 'No real opponent found yet...';
+    }
+    else if(sec === 5) {
+      document.getElementById('mm-status').textContent = 'No real opponent available...';
+      document.getElementById('mm-search-icon').textContent = '🤖';
+      if(oppAv) oppAv.textContent = '🤖';
+      if(oppName) oppName.textContent = 'AI Bot';
+    }
+    else if(sec === 7) {
+      document.getElementById('mm-title').textContent = 'Starting vs Bot!';
+      document.getElementById('mm-status').textContent = 'Starting match vs AI Bot...';
+      document.getElementById('mm-level').textContent = `${level.toUpperCase()} — VS BOT 🤖`;
+    }
+    
+    if(sec >= 8){
+      clearInterval(timer);
+      document.getElementById('modal-matchmaking').classList.remove('open');
+      window.location.href = url + `?mode=vsbot&level=${level}&fee=${entry}&payout=${payout}&${cacheBuster}`;
+    }
+  }, 1000);
 }
 
 function cancelMatchmaking(){
@@ -1054,6 +1076,8 @@ function startPracticeMode(){
   setData('pz_game_session', { userId: u.id, game: selectedGame, level: 'practice', fee: 0, payout: 0, mode: 'practice' });
   const gameUrls = { pool:'games/pool.html', snooker:'games/snooker.html', chess:'games/chess.html' };
   const cacheBuster = 'v=' + Date.now();
+  // Practice mode = directly vs Bot, no matchmaking needed
+  showToast('🎯 Starting practice match vs Bot!');
   window.location.href = gameUrls[selectedGame] + '?mode=practice&level=practice&fee=0&payout=0&' + cacheBuster;
 }
 

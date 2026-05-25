@@ -92,7 +92,7 @@
 <body>  <div class="header">
   <a href="../app.html" class="back-btn">← Back</a>
   <div class="logo">Play<span>Zip</span> 🎱</div>
-  <span class="back-btn" style="background:rgba(201,168,76,0.1);border-color:var(--gold);color:var(--gold);cursor:default">8-Ball</span>
+  <span class="back-btn" style="background:rgba(201,168,76,0.1);border-color:var(--gold);color:var(--gold);cursor:default" id="game-type-badge">8-Ball</span>
   <button id="sound-toggle" class="sound-btn" onclick="toggleSound()" style="background:none;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:16px;padding:6px 10px;cursor:pointer;transition:all 0.2s" title="Toggle Sound">🔊</button>
 </div>
 
@@ -495,7 +495,7 @@ function render() {
 function renderCueStick() {
   if (!cueStickWrapper || !cueStick) return;
 
-  if (state.gameOver || state.turn !== 'player' || state.phase === 'moving' || state.ballInHand || state.aimX === null) {
+  if (state.gameOver || state.phase === 'moving' || state.ballInHand || state.aimX === null) {
     cueStickWrapper.classList.remove('show');
     return;
   }
@@ -561,7 +561,7 @@ function renderTargetHighlight() {
   // Remove existing highlights
   ballContainer.querySelectorAll('.ball.target-highlight').forEach(el => el.classList.remove('target-highlight'));
   
-  if (state.gameOver || state.turn !== 'player' || state.aimX === null || state.ballInHand) return;
+  if (state.gameOver || state.aimX === null || state.ballInHand) return;
   if (state.phase === 'moving') return;
   
   const target = findTargetBall(state.aimX, state.aimY);
@@ -1036,7 +1036,7 @@ function aiPlaceCueBall() {
 }
 
 // ============================================================
-// AI
+// AI — Improved with visible shot simulation
 // ============================================================
 
 function aiTurn() {
@@ -1051,86 +1051,162 @@ function aiTurn() {
   const myBalls = aiGroup === 'solids' ? SOLIDS : STRIPES;
   const targetBalls = myBalls.filter(n => balls[n] && !balls[n].potted);
 
-  // Better AI logic with varying skill based on remaining balls
-  const remainingCount = targetBalls.length;
-  // AI gets better as fewer balls remain
-  const baseSkill = remainingCount <= 2 ? 0.65 : remainingCount <= 4 ? 0.50 : 0.40;
-  const success = Math.random() < baseSkill;
-
-  if (success && targetBalls.length > 0) {
-    // AI prefers balls near center (easier to pot) and avoids tight clusters
-    const sorted = targetBalls.sort((a, b) => {
-      const ba = balls[a], bb = balls[b];
-      // Prefer balls closer to center of table for easier potting
-      const da = Math.abs(ba.x - 50) + Math.abs(ba.y - 50);
-      const db = Math.abs(bb.x - 50) + Math.abs(bb.y - 50);
-      return da - db;
-    });
-    
-    // Pick from top 3 easiest or random if fewer
-    const pickFrom = Math.min(3, sorted.length);
-    const target = sorted[Math.floor(Math.random() * pickFrom)];
-    
-    balls[target].potted = true;
-    state.oppPotted++;
-    playPocket();
-
-    const remaining = myBalls.filter(n => balls[n] && !balls[n].potted).length;
-    
-    // On last ball, try for 8-ball
-    if (remaining === 0) {
-      const eightBallChance = 0.50; // 50% chance
-      if (Math.random() < eightBallChance) {
-        balls[8].potted = true;
-        updateScoreUI();
-        render();
-        playWin();
-        gameOver('opponent', '🤖 AI potted the 8-ball!');
-        return;
+  // Step 1: Show AI thinking with visible cue stick
+  if (targetBalls.length > 0) {
+    // Point cue toward the best target
+    const withDist = targetBalls.map(n => {
+      const ba = balls[n];
+      let minPocketDist = Infinity;
+      for (const [px, py] of POCKETS) {
+        const d = Math.sqrt((ba.x-px)**2 + (ba.y-py)**2);
+        if (d < minPocketDist) minPocketDist = d;
       }
-      setStatus('🤖 AI missed the 8-ball! Your chance!');
-    } else {
-      setStatus('🤖 AI potted a ball! ' + remaining + ' ball(s) remaining.');
-    }
+      return { num: n, x: ba.x, y: ba.y, pocketDist: minPocketDist };
+    });
+    withDist.sort((a, b) => a.pocketDist - b.pocketDist);
+    const pickFrom = Math.min(3, withDist.length);
+    const target = withDist[Math.floor(Math.random() * pickFrom)];
     
-    updateScoreUI();
+    // Set aim toward the target ball (visible cue stick)
+    const dx = target.x - cue.x;
+    const dy = target.y - cue.y;
+    const len = Math.sqrt(dx*dx + dy*dy);
+    const aimLen = Math.max(len * 1.5, 30);
+    state.aimX = cue.x + (dx / len) * aimLen;
+    state.aimY = cue.y + (dy / len) * aimLen;
+    state.phase = 'aim';
+    
+    setStatus('🤖 Bot is aiming... 🎯');
     render();
-
-    // AI continues turn if it potted its own ball
-    const continueChance = remainingCount <= 3 ? 0.50 : 0.35;
-    if (remaining > 0 && Math.random() < continueChance) {
-      state.turn = 'opponent';
-      setTimeout(() => {
-        if (!state.gameOver) aiTurn();
-      }, 600);
-      return;
-    }
     
-    state.turn = 'player';
-  } else {
-    const foulAI = Math.random() < 0.08;
-    if (foulAI) {
-      setStatus('🤖 AI scratch! Ball-in-hand for you! 🎉');
-      state.ballInHand = true;
-      state.turn = 'player';
-      $('player-box').classList.add('active');
-      $('opp-box').classList.remove('active');
-      updateScoreUI();
+    // Step 2: Flashy aim display
+    setTimeout(() => {
+      if (state.gameOver) return;
+      
+      setStatus('🤖 Bot locked on target! 🎯');
       render();
-      setStatus('🎱 Ball-in-hand! Cue ball place karo!');
-      return;
+      
+      // Step 3: Execute the AI shot
+      setTimeout(() => {
+        if (state.gameOver) return;
+        
+        const remainingCount = targetBalls.length;
+        const baseSkill = remainingCount <= 2 ? 0.70 : remainingCount <= 4 ? 0.55 : 0.45;
+        const success = Math.random() < baseSkill;
+        
+        if (success && targetBalls.length > 0) {
+          const targetNum = target.num;
+          
+          setStatus(`🤖 Bot shoots! 💥`);
+          state.phase = 'moving';
+          state.aimX = null;
+          render();
+          playCueShot();
+          
+          // Show ball as potted after a brief animation delay
+          setTimeout(() => {
+            if (state.gameOver) return;
+            balls[targetNum].potted = true;
+            state.oppPotted++;
+            playPocket();
+            
+            const remaining = myBalls.filter(n => balls[n] && !balls[n].potted).length;
+            
+            // On last ball, try for 8-ball
+            if (remaining === 0) {
+              setTimeout(() => {
+                if (state.gameOver) return;
+                const eightBallChance = 0.50;
+                if (Math.random() < eightBallChance) {
+                  balls[8].potted = true;
+                  updateScoreUI();
+                  render();
+                  playWin();
+                  gameOver('opponent', '🤖 Bot potted the 8-ball!');
+                  return;
+                }
+                setStatus('🤖 Bot missed the 8-ball! Your chance!');
+                finishAiTurn();
+              }, 400);
+              return;
+            }
+            
+            setStatus(`🤖 Bot potted a ball! ${remaining} ball(s) remaining.`);
+            updateScoreUI();
+            render();
+            
+            // AI continues turn if it potted its own ball
+            const continueChance = remainingCount <= 3 ? 0.50 : 0.35;
+            if (remaining > 0 && Math.random() < continueChance) {
+              state.turn = 'opponent';
+              setTimeout(() => {
+                if (!state.gameOver) aiTurn();
+              }, 800);
+              return;
+            }
+            
+            finishAiTurn();
+          }, 600);
+        } else {
+          // AI misses or fouls
+          state.phase = 'moving';
+          state.aimX = null;
+          render();
+          
+          const foulAI = Math.random() < 0.10;
+          if (foulAI) {
+            setTimeout(() => {
+              setStatus('🤖 Bot scratch! Ball-in-hand for you! 🎉');
+              state.ballInHand = true;
+              finishAiTurn('foul');
+            }, 400);
+            return;
+          }
+          setTimeout(() => {
+            setStatus('🤖 Bot missed! Your turn!');
+            finishAiTurn();
+          }, 400);
+        }
+      }, 600);
+    }, 600);
+  } else {
+    // No target balls: try 8-ball
+    const eightBallAttempt = Math.random() < 0.30;
+    if (eightBallAttempt) {
+      state.aimX = 60;
+      state.aimY = 50;
+      setStatus('🤖 Bot aiming for 8-ball! ⚫');
+      render();
+      setTimeout(() => {
+        if (state.gameOver) return;
+        playCueShot();
+        setTimeout(() => {
+          if (Math.random() < 0.30) {
+            playWin();
+            gameOver('opponent', '🤖 Bot potted the 8-ball!');
+          } else {
+            setStatus('🤖 Bot missed 8-ball! Your turn!');
+            finishAiTurn();
+          }
+        }, 600);
+      }, 600);
+    } else {
+      finishAiTurn();
     }
-    setStatus('🤖 AI missed! Your turn!');
   }
+}
 
-  // Switch to player
+function finishAiTurn(type) {
   state.turn = 'player';
   $('player-box').classList.add('active');
   $('opp-box').classList.remove('active');
   state.phase = 'aim';
   state.aimX = null;
   updateScoreUI();
-  render();      setStatus(state.ballInHand ? '🎱 Ball-in-hand! Cue ball place karo!' : '🎱 Your turn! Freely move mouse to aim, click to shoot!');
+  render();
+  setStatus(state.ballInHand 
+    ? '🎱 Ball-in-hand! Cue ball place karo!' 
+    : '🎱 Your turn! Freely move mouse to aim, click to shoot!');
 }
 
 // ============================================================
@@ -1238,6 +1314,11 @@ if (!soundEnabled) {
   const sBtn = document.getElementById('sound-toggle');
   if (sBtn) sBtn.textContent = '🔇';
 }
+
+// Expose for console debugging
+window.poolState = state;
+window.poolShoot = shoot;
+window.poolRender = render;
 
 console.log('🎱 Pool (8-Ball) — Full Game Loaded');
 </script>
