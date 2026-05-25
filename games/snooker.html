@@ -826,6 +826,7 @@ function physicsLoop() {
         cue.vx = 0; cue.vy = 0;
         playFoul();
         setStatus('❌ Cue ball potted! Foul!');
+        state.fouls++; // 🐛 FIX: Increment fouls here since handleFoul() no longer does it
         handleFoul();
         return;
       }
@@ -1055,6 +1056,7 @@ function endShot() {
   }
 
   if (foul) {
+    // 🐛 FIX: Only increment fouls ONCE here, handleFoul() no longer increments
     state.fouls++;
     handleFoul();
     return;
@@ -1100,7 +1102,7 @@ function reSpotColor(name) {
 
 function handleFoul() {
   state.ballInHand = true;
-  state.fouls++;
+  // 🐛 FIX: No longer increment fouls here — endShot() already increments it
   updateUI();
   render();
   endTurn();
@@ -1115,7 +1117,7 @@ function endTurn() {
   $('opp-box').classList.add('active');
 
   if (state.ballInHand) {
-    setStatus('🤖 AI will place cue ball...');
+    setStatus('🤖 AI placing cue ball...');
     setTimeout(aiTurn, 600);
   } else {
     setStatus('🤖 AI ka turn...');
@@ -1132,6 +1134,125 @@ function aiTurn() {
 
   // 🐛 FIXED: Derive phase from game state, not state.phase (which gets set to 'idle' in endShot)
   const currentPhase = state.redsRemaining > 0 ? 'reds' : 'colors';
+
+  // -------------------------------------------------------
+  // 🏆 BALL-IN-HAND: AI places cue ball strategically after foul
+  // -------------------------------------------------------
+  if (state.ballInHand) {
+    setStatus('🤖 Bot placing cue ball... 🎯');
+    
+    // Find the best position to place the cue ball
+    const bestPos = findBestAIPlacement(currentPhase);
+    cue.x = bestPos.x;
+    cue.y = bestPos.y;
+    cue.vx = 0;
+    cue.vy = 0;
+    state.ballInHand = false;
+    state.phase = 'aim';
+    render();
+    
+    // Short pause so player can see where the cue ball was placed
+    setTimeout(() => {
+      if (state.gameOver) return;
+      continueAiTurn(currentPhase);
+    }, 400);
+    return;
+  }
+  
+  // No ball-in-hand, proceed normally
+  continueAiTurn(currentPhase);
+}
+
+/**
+ * 🎯 Find the best spot for AI to place the cue ball after a foul
+ */
+function findBestAIPlacement(currentPhase) {
+  const margin = 4; // Keep away from edges & other balls
+  
+  // Collect positions of all non-potted balls
+  const occupiedSpots = Object.values(balls).filter(b => !b.potted).map(b => ({x: b.x, y: b.y}));
+  
+  // Check if a position is valid (not on top of another ball)
+  function isValidPos(x, y) {
+    // Keep within table bounds
+    if (x < margin || x > 100 - margin || y < margin || y > 100 - margin) return false;
+    // Not on another ball
+    for (const o of occupiedSpots) {
+      if (Math.sqrt((x - o.x) ** 2 + (y - o.y) ** 2) < 6) return false;
+    }
+    return true;
+  }
+  
+  if (currentPhase === 'reds') {
+    // Look for available target balls
+    const targets = state.nextBall === 'red'
+      ? Object.entries(balls).filter(([k, b]) => k.startsWith('red_') && !b.potted).map(([_, b]) => b)
+      : ['yellow','green','brown','blue','pink','black'].map(n => balls[n]).filter(b => b && !b.potted);
+    
+    if (targets.length > 0) {
+      // Calculate center of target cluster
+      const cx = targets.reduce((s, b) => s + b.x, 0) / targets.length;
+      const cy = targets.reduce((s, b) => s + b.y, 0) / targets.length;
+      
+      // Try to place cue ball left of the cluster (baulk area) for best visibility
+      const tryX = Math.max(8, Math.min(28, cx - 20));
+      const tryY = Math.max(20, Math.min(80, cy));
+      
+      if (isValidPos(tryX, tryY)) return {x: tryX, y: tryY};
+      
+      // Fallback: scan for any valid position near target
+      for (let angle = 0; angle < 360; angle += 15) {
+        const rad = angle * Math.PI / 180;
+        const px = cx - Math.cos(rad) * 25;
+        const py = cy - Math.sin(rad) * 25;
+        if (isValidPos(px, py)) return {x: px, y: py};
+      }
+    }
+    
+    // Default: center-left area
+    const defaultPositions = [
+      {x: 18, y: 40}, {x: 18, y: 60}, {x: 22, y: 50},
+      {x: 15, y: 35}, {x: 15, y: 65}, {x: 25, y: 45},
+      {x: 30, y: 50}, {x: 10, y: 50}, {x: 35, y: 40}
+    ];
+    for (const pos of defaultPositions) {
+      if (isValidPos(pos.x, pos.y)) return pos;
+    }
+    
+    return {x: 22, y: 50};
+  } else {
+    // Colors phase — place near the current target color
+    const target = balls[state.nextBall];
+    if (target && !target.potted) {
+      // Place behind the target ball for a direct shot
+      const behindX = Math.max(5, target.x - 22);
+      const behindY = Math.max(10, Math.min(90, target.y));
+      if (isValidPos(behindX, behindY)) return {x: behindX, y: behindY};
+      
+      for (let angle = 0; angle < 360; angle += 15) {
+        const rad = angle * Math.PI / 180;
+        const px = target.x - Math.cos(rad) * 22;
+        const py = target.y - Math.sin(rad) * 22;
+        if (isValidPos(px, py)) return {x: px, y: py};
+      }
+    }
+    
+    // Default: center area
+    const defaultPositions = [
+      {x: 25, y: 45}, {x: 25, y: 55}, {x: 20, y: 50},
+      {x: 30, y: 40}, {x: 30, y: 60}, {x: 35, y: 50}
+    ];
+    for (const pos of defaultPositions) {
+      if (isValidPos(pos.x, pos.y)) return pos;
+    }
+    return {x: 28, y: 50};
+  }
+}
+
+/**
+ * 🎯 Continue AI turn after ball-in-hand placement (or directly if no foul)
+ */
+function continueAiTurn(currentPhase) {
   
   // Show AI thinking with visual cue direction
   const success = Math.random() < 0.38;
