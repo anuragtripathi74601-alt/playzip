@@ -577,7 +577,9 @@ ballContainer.addEventListener('mousemove', function(e) {
   
   if (cueDragState.charging) {
     const pos = getTablePos(e);
-    if (!isOnTable(pos)) return;
+    // 🐛 FIX: Clamp to table bounds so power charging doesn't freeze off-table
+    pos.x = Math.max(1, Math.min(99, pos.x));
+    pos.y = Math.max(1, Math.min(99, pos.y));
     const dx = pos.x - cueDragState.lockX;
     const dy = pos.y - cueDragState.lockY;
     const dist = Math.sqrt(dx*dx + dy*dy);
@@ -586,7 +588,9 @@ ballContainer.addEventListener('mousemove', function(e) {
     render();
   } else {
     const pos = getTablePos(e);
-    if (!isOnTable(pos)) return;
+    // 🐛 FIX: Clamp to table bounds so cue stick doesn't freeze when mouse leaves the table
+    pos.x = Math.max(1, Math.min(99, pos.x));
+    pos.y = Math.max(1, Math.min(99, pos.y));
     state.aimX = pos.x;
     state.aimY = pos.y;
     state.phase = 'aim';
@@ -623,7 +627,9 @@ ballContainer.addEventListener('mousedown', function(e) {
   if (state.phase === 'moving') return;
   
   const pos = getTablePos(e);
-  if (!isOnTable(pos)) return;
+  // 🐛 FIX: Clamp to table bounds so click works even near edges
+  pos.x = Math.max(1, Math.min(99, pos.x));
+  pos.y = Math.max(1, Math.min(99, pos.y));
   
   cueDragState.charging = true;
   cueDragState.lockX = pos.x;
@@ -691,7 +697,9 @@ ballContainer.addEventListener('touchstart', function(e) {
 ballContainer.addEventListener('touchmove', function(e) {
   if (!cueDragState.charging) return;
   const pos = getTablePos(e);
-  if (!isOnTable(pos)) return;
+  // 🐛 FIX: Clamp to table bounds so touch charging doesn't freeze off-table
+  pos.x = Math.max(1, Math.min(99, pos.x));
+  pos.y = Math.max(1, Math.min(99, pos.y));
   
   const dx = pos.x - cueDragState.lockX;
   const dy = pos.y - cueDragState.lockY;
@@ -872,6 +880,9 @@ function physicsLoop() {
 // ============================================================
 
 function endShot() {
+  // 🐛 FIX: Save the actual game phase BEFORE setting to 'idle'
+  const currentPhase = state.phase; // 'reds' or 'colors'
+  
   state.phase = 'idle';
   state.shotCount++;
   shootBtn.disabled = false;
@@ -883,6 +894,8 @@ function endShot() {
   let pottedColor = false;
   let pottedColorName = null;
   let foul = false;
+  // 🐛 FIX: Track if player correctly potted (should continue turn)
+  let continueTurn = false;
 
   // Check what was potted
   potted.forEach(name => {
@@ -890,53 +903,60 @@ function endShot() {
     else { pottedColor = true; pottedColorName = name; pts += BALLS_DEF[name]?.pts || 0; }
   });
 
-  // RULES ENFORCEMENT
-  if (state.phase === 'reds') {
+  // 🐛 FIX: Use saved currentPhase instead of state.phase (which is now 'idle')
+  if (currentPhase === 'reds') {
     if (state.nextBall === 'red') {
       // Must pot red first
       if (pottedRed && !pottedColor) {
-        // Correct: potted red
+        // Correct: potted red — player continues
         state.playerScore += 1;
         state.redsRemaining--;
         state.nextBall = 'color';
+        continueTurn = true;
         state.shotHistory.push('🔴 Pot red (+1)');
         setStatus(`✅ Red potted! Ab koi color pot karo. (${state.redsRemaining} reds left)`);
       } else if (pottedRed && pottedColor && potted.length === 2) {
-        // Potted red + color in same shot — only red counts
+        // Potted red + color in same shot — only red counts, player continues
         state.playerScore += 1;
         state.redsRemaining--;
         // Re-spot the color
         reSpotColor(pottedColorName);
-        state.nextBall = 'red';
+        state.nextBall = 'color';
+        continueTurn = true;
         state.shotHistory.push(`🔴 Pot red (+1), ${pottedColorName} re-spotted`);
-        setStatus(`✅ Red potted! ${pottedColorName.charAt(0).toUpperCase()+pottedColorName.slice(1)} re-spotted.`);
+        setStatus(`✅ Red potted! ${pottedColorName.charAt(0).toUpperCase()+pottedColorName.slice(1)} re-spotted. Ab color pot karo.`);
       } else if (!pottedRed && pottedColor) {
         // Wrong: potted color before red
         foul = true;
-        state.oppScore += Math.max(4, BALLS_DEF[pottedColorName]?.pts || 4);
-        state.shotHistory.push(`🚫 Foul! Potted ${pottedColorName} (-${Math.max(4, BALLS_DEF[pottedColorName]?.pts || 4)})`);
-        setStatus(`🚫 Foul! Pehle red pot karna tha! ${Math.max(4, BALLS_DEF[pottedColorName]?.pts || 4)} points to opponent.`);
+        const penalty = Math.max(4, BALLS_DEF[pottedColorName]?.pts || 4);
+        state.oppScore += penalty;
+        reSpotColor(pottedColorName);
+        state.shotHistory.push(`🚫 Foul! Potted ${pottedColorName} (-${penalty})`);
+        setStatus(`🚫 Foul! Pehle red pot karna tha! ${penalty} points to opponent.`);
       } else if (potted.length === 0) {
         state.shotHistory.push('❌ Miss');
         setStatus('❌ Miss! Koi ball pot nahi hui.');
-      } else if (pottedRed && pottedColor && potted.length > 2) {
-        state.playerScore += potted.filter(n => n.startsWith('red_')).length;
-        state.redsRemaining -= potted.filter(n => n.startsWith('red_')).length;
+      } else if (pottedRed) {
+        const redCount = potted.filter(n => n.startsWith('red_')).length;
+        state.playerScore += redCount;
+        state.redsRemaining -= redCount;
         const colorsPot = potted.filter(n => !n.startsWith('red_'));
-        colorsPot.forEach(c => reSpotColor(c));
-        state.nextBall = 'red';
-        state.shotHistory.push(`🔴 Pot ${potted.filter(n => n.startsWith('red_')).length} reds`);
-        setStatus(`✅ Reds potted! Colors re-spotted.`);
+        colorsPot.forEach(c => { reSpotColor(c); });
+        state.nextBall = 'color';
+        continueTurn = true;
+        state.shotHistory.push(`🔴 Pot ${redCount} red(s), colors re-spotted`);
+        setStatus(`✅ ${redCount} red(s) potted! Next: color.`);
       }
     } else {
       // Must pot a color
       if (pottedColor && !pottedRed && potted.length === 1) {
-        // Correct: potted a color
+        // Correct: potted a color — player continues
         const colorPts = BALLS_DEF[pottedColorName]?.pts || 0;
         state.playerScore += colorPts;
         state.nextBall = 'red';
         // Re-spot the color
         reSpotColor(pottedColorName);
+        continueTurn = true;
         state.shotHistory.push(`🎨 Pot ${pottedColorName} (+${colorPts}) • re-spotted`);
         setStatus(`✅ ${pottedColorName.charAt(0).toUpperCase()+pottedColorName.slice(1)} potted! Re-spotted. Ab red pot karo.`);
       } else if (pottedRed) {
@@ -949,10 +969,12 @@ function endShot() {
         state.shotHistory.push('❌ Miss');
         setStatus('❌ Miss! Color pot nahi hui.');
       } else {
+        // Wrong ball potted
         foul = true;
-        const penalty = Math.max(4, BALLS_DEF[pottedColorName]?.pts || 4);
+        const pottedAnyColor = potted.filter(n => !n.startsWith('red_'));
+        const penalty = pottedAnyColor.length > 0 ? Math.max(4, BALLS_DEF[pottedAnyColor[0]]?.pts || 4) : 4;
         state.oppScore += penalty;
-        if (pottedColorName) reSpotColor(pottedColorName);
+        pottedAnyColor.forEach(c => reSpotColor(c));
         state.shotHistory.push(`🚫 Foul! (-${penalty})`);
         setStatus(`🚫 Foul! ${penalty} points to opponent.`);
       }
@@ -960,27 +982,29 @@ function endShot() {
 
     // Check if reds phase is over
     checkRedsPhaseOver();
-  } else if (state.phase === 'colors') {
-    // Colors phase — pot in order
+  } else if (currentPhase === 'colors') {
+    // Colors phase — pot in order: Yellow → Green → Brown → Blue → Pink → Black
     const idx = COLOR_ORDER.indexOf(state.nextBall);
     if (idx >= 0) {
       const targetColor = COLOR_ORDER[idx];
-      if (pottedColorName === targetColor && potted.length === 1) {
+      if (pottedColorName === targetColor && potted.length === 1 && !pottedRed) {
+        // Correct: potted the right color in order — player continues
         const colorPts = BALLS_DEF[targetColor]?.pts || 0;
         state.playerScore += colorPts;
-        // Colors are permanently potted in this phase (no re-spotting)
+        // In colors phase, colors stay down (no re-spotting)
+        // The ball remains potted permanently
         state.shotHistory.push(`🎨 Pot ${targetColor} (+${colorPts})`);
 
         if (idx < COLOR_ORDER.length - 1) {
+          continueTurn = true;
           state.nextBall = COLOR_ORDER[idx + 1];
           setStatus(`✅ ${targetColor.charAt(0).toUpperCase()+targetColor.slice(1)} potted! Next: ${COLOR_ORDER[idx+1].charAt(0).toUpperCase()+COLOR_ORDER[idx+1].slice(1)}`);
         } else {
-          // Game over!
+          // 🏆 Game over — all colors potted!
           state.phase = 'over';
           state.gameOver = true;
-          const finalScore = `${state.playerScore} - ${state.oppScore}`;
           const win = state.playerScore > state.oppScore;
-          showGameOver(win, `Final score: ${finalScore}`);
+          showGameOver(win, `Final score: ${state.playerScore} - ${state.oppScore}`);
           setStatus(win ? '🏆 Frame complete! You win!' : '💀 Frame complete! Opponent wins!');
           updateUI();
           render();
@@ -990,12 +1014,14 @@ function endShot() {
         state.shotHistory.push('❌ Miss');
         setStatus(`❌ Miss! ${targetColor.charAt(0).toUpperCase()+targetColor.slice(1)} pot karna tha.`);
       } else {
-        // Wrong ball potted
+        // Wrong ball potted — foul
         foul = true;
-        const penalty = Math.max(4, BALLS_DEF[pottedColorName]?.pts || 4);
+        const pottedWrongColor = potted.filter(n => !n.startsWith('red_'));
+        const penalty = pottedWrongColor.length > 0 ? Math.max(4, BALLS_DEF[pottedWrongColor[0]]?.pts || 4) : 4;
         state.oppScore += penalty;
-        if (pottedColorName) reSpotColor(pottedColorName);
-        state.shotHistory.push(`🚫 Foul! (-${penalty})`);
+        // Re-spot the wrongfully potted color (it should go back)
+        pottedWrongColor.forEach(c => reSpotColor(c));
+        state.shotHistory.push(`🚫 Foul! Wrong ball! (-${penalty})`);
         setStatus(`🚫 Foul! Wrong ball! ${penalty} points to opponent.`);
       }
     }
@@ -1009,7 +1035,19 @@ function endShot() {
 
   updateUI();
   render();
-  endTurn();
+
+  // 🐛 FIX: After a correct pot, player continues their turn (snooker rules)
+  // Only end turn on missed shots, fouls, or incorrect pots
+  if (continueTurn) {
+    state.turn = 'player';
+    state.phase = 'aim';
+    state.aimX = null;
+    $('player-box').classList.add('active');
+    $('opp-box').classList.remove('active');
+    render();
+  } else {
+    endTurn();
+  }
 }
 
 function reSpotColor(name) {
@@ -1055,27 +1093,29 @@ function aiTurn() {
   if (state.gameOver) return;
 
   const success = Math.random() < 0.35;
-  let aiPts = 0;
 
   if (state.phase === 'reds') {
+    // 🐛 FIX: Save gamePhase before AI modifies it
+    const gamePhase = 'reds';
+    
     if (state.nextBall === 'red') {
       if (success && state.redsRemaining > 0) {
-        // AI pots a red
+        // AI pots a red — correct in snooker
         state.oppScore += 1;
         state.redsRemaining--;
         state.nextBall = 'color';
         state.shotHistory.push('🤖 AI pot red (+1)');
         setStatus(`🤖 AI potted a red! (${state.redsRemaining} left)`);
 
-        // If no reds left, go to colors
+        // If no reds left, transition to colors phase
         if (state.redsRemaining <= 0) {
           state.phase = 'colors';
           state.nextBall = 'yellow';
-          setStatus('🟡 All reds done! AI needs to pot colors.');
+          setStatus('🟡 All reds done! AI needs to pot colors in order.');
           updateUI();
         }
       } else {
-        // AI misses
+        // AI misses or fouls
         if (Math.random() < 0.12) {
           state.playerScore += 4;
           state.shotHistory.push('🤖 AI foul (-4)');
@@ -1087,10 +1127,20 @@ function aiTurn() {
         }
       }
     } else {
-      // AI needs to pot a color
+      // AI needs to pot a color (after a red)
       if (success) {
-        const colors = ['yellow','green','brown','blue','pink','black'];
-        const picked = colors[Math.floor(Math.random() * colors.length)];
+        // 🐛 FIX: AI should pot the highest available color for maximum points
+        // but have some randomness to make it beatable
+        const available = ['yellow','green','brown','blue','pink','black'];
+        // Weight towards higher value colors
+        const weights = [5, 5, 10, 20, 25, 35];
+        let totalWeight = weights.reduce((a,b) => a+b, 0);
+        let rand = Math.random() * totalWeight;
+        let picked = available[available.length - 1];
+        for (let i = 0; i < available.length; i++) {
+          rand -= weights[i];
+          if (rand <= 0) { picked = available[i]; break; }
+        }
         const pts = BALLS_DEF[picked].pts;
         state.oppScore += pts;
         state.nextBall = 'red';
@@ -1111,10 +1161,11 @@ function aiTurn() {
       }
     }
   } else if (state.phase === 'colors') {
+    // 🐛 FIX: AI must pot colors IN ORDER in colors phase
     const idx = COLOR_ORDER.indexOf(state.nextBall);
     if (idx >= 0) {
       const target = COLOR_ORDER[idx];
-      if (success && Math.random() < 0.3) {
+      if (Math.random() < 0.3) {
         const pts = BALLS_DEF[target].pts;
         state.oppScore += pts;
         state.shotHistory.push(`🤖 AI pot ${target} (+${pts})`);
@@ -1123,6 +1174,7 @@ function aiTurn() {
           state.nextBall = COLOR_ORDER[idx + 1];
           setStatus(`🤖 AI potted ${target}! Next: ${COLOR_ORDER[idx+1]}`);
         } else {
+          // Last color (Black) potted — game over
           state.phase = 'over';
           state.gameOver = true;
           const win = state.playerScore > state.oppScore;

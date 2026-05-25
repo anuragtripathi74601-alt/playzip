@@ -550,7 +550,9 @@ ballContainer.addEventListener('mousemove', function(e) {
   if (cueDragState.charging) {
     // Dragging to set power — distance from lock point determines power
     const pos = getTablePos(e);
-    if (!isOnTable(pos)) return;
+    // 🐛 FIX: Clamp to table bounds so power charging doesn't freeze off-table
+    pos.x = Math.max(1, Math.min(99, pos.x));
+    pos.y = Math.max(1, Math.min(99, pos.y));
     const dx = pos.x - cueDragState.lockX;
     const dy = pos.y - cueDragState.lockY;
     const dist = Math.sqrt(dx*dx + dy*dy);
@@ -560,7 +562,9 @@ ballContainer.addEventListener('mousemove', function(e) {
   } else {
     // Free aim — cue stick follows mouse
     const pos = getTablePos(e);
-    if (!isOnTable(pos)) return;
+    // 🐛 FIX: Clamp to table bounds so cue stick doesn't freeze when mouse leaves the table
+    pos.x = Math.max(1, Math.min(99, pos.x));
+    pos.y = Math.max(1, Math.min(99, pos.y));
     state.aimX = pos.x;
     state.aimY = pos.y;
     state.phase = 'aim';
@@ -592,7 +596,9 @@ ballContainer.addEventListener('mousedown', function(e) {
   if (state.phase === 'moving') return;
   
   const pos = getTablePos(e);
-  if (!isOnTable(pos)) return;
+  // 🐛 FIX: Clamp to table bounds so click works even near edges
+  pos.x = Math.max(1, Math.min(99, pos.x));
+  pos.y = Math.max(1, Math.min(99, pos.y));
   
   // Lock aim and start charging
   cueDragState.charging = true;
@@ -657,7 +663,9 @@ ballContainer.addEventListener('touchstart', function(e) {
 ballContainer.addEventListener('touchmove', function(e) {
   if (!cueDragState.charging) return;
   const pos = getTablePos(e);
-  if (!isOnTable(pos)) return;
+  // 🐛 FIX: Clamp to table bounds so touch charging doesn't freeze off-table
+  pos.x = Math.max(1, Math.min(99, pos.x));
+  pos.y = Math.max(1, Math.min(99, pos.y));
   
   const dx = pos.x - cueDragState.lockX;
   const dy = pos.y - cueDragState.lockY;
@@ -938,8 +946,11 @@ function endShot() {
         gameOver('player');
         return;
       }
+      // 🐛 FIX: Set phase to 'aim' so player can continue their turn with full UI
+      state.phase = 'aim';
       updateScoreUI();
       render();
+      setStatus(`✅ ${pottedOwn.length} ball(s) potted! ${myLeft > 0 ? `${myLeft} remaining.` : 'Now pot the 8-ball!'}`);
       return; // Continue turn
     } else if (pottedOpp.length > 0) {
       setStatus(`❌ Opponent's ball potted! Turn over.`);
@@ -948,6 +959,8 @@ function endShot() {
     }
   } else if (!state.playerGroup && potted.length > 0) {
     // First pot happened, continue turn
+    // 🐛 FIX: Set phase to 'aim' so player can continue
+    state.phase = 'aim';
     updateScoreUI();
     render();
     return;
@@ -1025,40 +1038,62 @@ function aiTurn() {
   const myBalls = aiGroup === 'solids' ? SOLIDS : STRIPES;
   const targetBalls = myBalls.filter(n => balls[n] && !balls[n].potted);
 
-  // Random shot success (adjusted for difficulty)
-  const success = Math.random() < 0.4;
-  let pottedThisAI = [];
+  // 🐛 FIX: Better AI logic with varying skill based on remaining balls
+  const remainingCount = targetBalls.length;
+  // AI gets better as fewer balls remain (easier to see patterns)
+  const baseSkill = remainingCount <= 2 ? 0.6 : remainingCount <= 4 ? 0.45 : 0.35;
+  const success = Math.random() < baseSkill;
 
   if (success && targetBalls.length > 0) {
-    // Pot a random ball from AI's group
-    const target = targetBalls[Math.floor(Math.random() * targetBalls.length)];
+    // Pick the ball closest to a pocket (simplified: pick a ball)
+    const target = targetBalls.reduce((best, n) => {
+      const b = balls[n];
+      // Favor easier pocketing positions (higher y = closer to bottom pockets)
+      // Just pick a reasonable ball
+      return Math.random() < 0.5 ? n : best;
+    }, targetBalls[Math.floor(Math.random() * targetBalls.length)]);
+    
     balls[target].potted = true;
-    pottedThisAI.push(target);
     state.oppPotted++;
 
     const remaining = myBalls.filter(n => balls[n] && !balls[n].potted).length;
+    
+    // On last ball, try for 8-ball
     if (remaining === 0) {
-      // Try to pot 8-ball
-      if (Math.random() < 0.3) {
+      const eightBallChance = 0.35 + (Math.random() * 0.15); // 35-50%
+      if (Math.random() < eightBallChance) {
         balls[8].potted = true;
+        playWin();
         gameOver('opponent', '🤖 AI potted the 8-ball!');
         return;
       }
+      setStatus(`🤖 AI missed the 8-ball! Your chance!`);
+    } else {
+      setStatus(`🤖 AI potted a ball! ${remaining} ball(s) remaining.`);
     }
-    setStatus(`🤖 AI potted a ball! ${remaining} remaining.`);
-    state.turn = 'opponent';
+    
     updateScoreUI();
     render();
 
-    // AI continues if it potted its own ball
-    if (remaining > 0 && Math.random() < 0.3) {
-      setTimeout(aiTurn, 600);
+    // AI continues if it potted its own ball — with a chance to miss the next
+    const continueChance = remaining > 0 ? 0.35 + (remainingCount <= 3 ? 0.2 : 0) : 0;
+    if (remaining > 0 && Math.random() < continueChance && remaining > 0) {
+      state.turn = 'opponent';
+      setTimeout(() => {
+        if (!state.gameOver) aiTurn();
+      }, 600);
       return;
     }
+    
+    // After potting, check if AI should continue or pass
+    if (remaining > 0) {
+      // Pass turn after potting — realistic: AI doesn't always run the table
+      state.turn = 'player';
+    }
   } else {
-    const foulAI = Math.random() < 0.15;
+    const foulAI = Math.random() < 0.12;
     if (foulAI) {
-      setStatus('🤖 AI scratch! Ball-in-hand for you!');
+      setStatus('🤖 AI scratch! Ball-in-hand for you! 🎉');
       state.ballInHand = true;
       state.turn = 'player';
       $('player-box').classList.add('active');
@@ -1079,7 +1114,7 @@ function aiTurn() {
   state.aimX = null;
   updateScoreUI();
   render();
-  setStatus(state.ballInHand ? '🎱 Ball-in-hand! Cue ball place karo!' : '🎱 Your turn! Mouse move to aim, click+drag to shoot!');
+  setStatus(state.ballInHand ? '🎱 Ball-in-hand! Cue ball place karo!' : '🎱 Your turn! Move mouse to aim, click+drag to shoot!');
 }
 
 // ============================================================

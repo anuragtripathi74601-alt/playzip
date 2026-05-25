@@ -64,6 +64,18 @@
   .time-btn{padding:6px 14px;border:1px solid var(--border);border-radius:6px;background:var(--bg2);color:var(--text2);font-size:12px;cursor:pointer;font-family:inherit;transition:all 0.15s}
   .time-btn.active{border-color:var(--gold);color:var(--gold);background:rgba(201,168,76,0.08)}
 
+  /* Promotion Modal */
+  .promo-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+  .promo-overlay.show{display:flex}
+  .promo-dialog{background:var(--bg2);border:1px solid var(--gold);border-radius:12px;padding:20px 28px;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,0.5)}
+  .promo-title{font-size:14px;color:var(--text2);margin-bottom:12px;font-weight:600}
+  .promo-options{display:flex;gap:12px;justify-content:center}
+  .promo-btn{width:56px;height:56px;border-radius:8px;border:2px solid var(--border);background:var(--bg3);font-size:32px;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center}
+  .promo-btn:hover{border-color:var(--gold);background:rgba(201,168,76,0.1);transform:scale(1.1)}
+  .promo-btn:active{transform:scale(0.95)}
+  .promo-btn .lbl{font-size:9px;color:var(--text2);position:absolute;bottom:4px}
+  .promo-options .promo-btn{position:relative}
+
   @media(max-width:400px){
     body{padding:8px}
     .controls .btn{padding:8px 12px;font-size:11px}
@@ -109,10 +121,22 @@
 <div class="captured-area" id="captured-white"></div>
 <div class="captured-area" id="captured-black"></div>
 
+  <!-- Promotion Modal -->
+  <div class="promo-overlay" id="promo-overlay">
+    <div class="promo-dialog">
+      <div class="promo-title">♛ Promote Pawn to:</div>
+      <div class="promo-options">
+        <button class="promo-btn" onclick="choosePromotion('Q')">♛<span class="lbl" style="font-size:9px;color:var(--text2);display:block;position:absolute;bottom:2px">Queen</span></button>
+        <button class="promo-btn" onclick="choosePromotion('R')">♜<span class="lbl" style="font-size:9px;color:var(--text2);display:block;position:absolute;bottom:2px">Rook</span></button>
+        <button class="promo-btn" onclick="choosePromotion('B')">♝<span class="lbl" style="font-size:9px;color:var(--text2);display:block;position:absolute;bottom:2px">Bishop</span></button>
+        <button class="promo-btn" onclick="choosePromotion('N')">♞<span class="lbl" style="font-size:9px;color:var(--text2);display:block;position:absolute;bottom:2px">Knight</span></button>
+      </div>
+    </div>
+  </div>
+
 <div class="controls">
   <button class="btn btn-gold" onclick="undoMove()">↩ Undo</button>
   <button class="btn btn-outline" onclick="flipBoard()">🔄 Flip</button>
-  <button class="btn btn-outline" onclick="openPromotionModal(null)">♛ Promote</button>
   <button class="btn btn-red" onclick="if(confirm('New game?')){initGame()}">🔄 New Game</button>
 </div>
 
@@ -124,6 +148,16 @@
 </div>
 
 <script>
+// ============================================================
+// Read URL params — MUST be at the top so all functions can use them
+// ============================================================
+const chessParams = new URLSearchParams(window.location.search);
+const chessMode = chessParams.get('mode') || '1v1';
+const chessLevel = chessParams.get('level') || 'free';
+const chessFee = parseInt(chessParams.get('fee')) || 0;
+const chessPayout = parseInt(chessParams.get('payout')) || 0;
+if (chessMode) console.log(`Chess mode: ${chessMode}, Level: ${chessLevel}, Fee: ${chessFee}, Payout: ${chessPayout}`);
+
 // ============================================================
 // CHESS ENGINE — Full Implementation
 // ============================================================
@@ -733,8 +767,8 @@ function handleClick(row, col){
       // Check pawn promotion
       const p=board[selected.row][selected.col];
       if(type(p)==='P' && (row===0||row===7)){
-        openPromotionModal(()=>{
-          makeMove(selected.row, selected.col, row, col, 'Q');
+        openPromotionModal((promoPiece)=>{
+          makeMove(selected.row, selected.col, row, col, promoPiece);
           selected=null;legalMoves=[];
         });
         return;
@@ -826,9 +860,27 @@ function flipBoard(){
   renderBoard();
 }
 
-function openPromotionModal(callback){
-  // Auto-promote to queen for now
-  if(callback) callback();
+// Pending promotion state
+let pendingPromotion = null; // { callback }
+
+function openPromotionModal(callback) {
+  pendingPromotion = { callback };
+  const overlay = document.getElementById('promo-overlay');
+  if (overlay) overlay.classList.add('show');
+}
+
+function closePromotionModal() {
+  const overlay = document.getElementById('promo-overlay');
+  if (overlay) overlay.classList.remove('show');
+  pendingPromotion = null;
+}
+
+function choosePromotion(piece) {
+  closePromotionModal();
+  if (pendingPromotion && pendingPromotion.callback) {
+    pendingPromotion.callback(piece);
+  }
+  pendingPromotion = null;
 }
 
 // ============================================================
