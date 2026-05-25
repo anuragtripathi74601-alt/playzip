@@ -180,7 +180,78 @@
     <button class="btn btn-outline btn-sm" onclick="resetGame()">🔄 New Frame</button>
   </div>
 
-  <div class="hint">🖱️ Freely move mouse to aim • Click to shoot! ⬆️⬇️ Arrow keys for power</div>
+  <button class="btn btn-outline btn-sm" onclick="toggleSnookerRules()" style="background:none;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:12px;padding:6px 14px;cursor:pointer;transition:all 0.2s;width:100%;margin-top:4px">📖 Rules Guide</button>
+
+  <!-- SNOOKER RULES MODAL -->
+  <div class="rules-overlay" id="rules-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(4px);padding:20px" onclick="if(event.target===this)toggleSnookerRules()">
+    <div class="rules-dialog" style="background:var(--bg2);border:1px solid var(--gold);border-radius:12px;padding:24px;max-width:500px;width:100%;max-height:80vh;overflow-y:auto;position:relative">
+      <button onclick="toggleSnookerRules()" style="position:absolute;top:8px;right:12px;background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer">✕</button>
+      <h3 style="color:var(--gold);font-size:18px;margin-bottom:16px">🎯 Snooker — Rules Guide</h3>
+      
+      <div style="font-size:11px;color:var(--text2);margin-bottom:14px;background:var(--bg3);padding:8px 12px;border-radius:6px">
+        <b>Goal:</b> Doosre player se zyada points score karo! Pehle <b>Red</b> balls pot karo, phir <b>Color</b> balls pot karo.
+      </div>
+      
+      <div class="rule-step" style="margin-bottom:12px;padding:10px;background:var(--bg3);border-radius:8px">
+        <div style="font-weight:700;color:#E25C3A;font-size:13px;margin-bottom:4px">🔴 Phase 1: Reds Phase (15 Red Balls)</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5">
+          <b>Step 1:</b> Pehle aap ek 🔴 <b>Red ball</b> pot karo (1 point)<br>
+          <b>Step 2:</b> Phir koi bhi 🎨 <b>Color ball</b> pot karo — Yellow(2), Green(3), Brown(4), Blue(5), Pink(6), Black(7)<br>
+          <b>Step 3:</b> Color pot karne ke baad wapas 🔴 <b>Red</b> pot karo<br>
+          <b>Repeat:</b> Red → Color → Red → Color... jab tak saare 15 reds khatam na ho jayein!<br>
+          <span style="color:var(--gold);font-size:11px">💡 <b>Note:</b> Colors pot karne ke baad wapas apni jagah par aa jaate hain (re-spot)</span>
+        </div>
+      </div>
+      
+      <div class="rule-step" style="margin-bottom:12px;padding:10px;background:var(--bg3);border-radius:8px">
+        <div style="font-weight:700;color:#5B99F0;font-size:13px;margin-bottom:4px">🎨 Phase 2: Colors Phase (6 Color Balls)</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5">
+          Saare reds khatam hone ke baad, colors pot karo <b>iss order mein:</b><br>
+          1️⃣ <span style="color:#F0C96A">Yellow</span> (2 pts)<br>
+          2️⃣ <span style="color:#3ABE7A">Green</span> (3 pts)<br>
+          3️⃣ <span style="color:#8B5A2B">Brown</span> (4 pts)<br>
+          4️⃣ <span style="color:#5B99F0">Blue</span> (5 pts)<br>
+          5️⃣ <span style="color:#E8734A">Pink</span> (6 pts)<br>
+          6️⃣ <span style="color:#1A1A1A">Black</span> (7 pts) — Last ball! 🏆<br>
+          <span style="color:var(--gold);font-size:11px">💡 Colors phase mein colors <b>wapas nahi aate</b> — permanently pot ho jaate hain!</span>
+        </div>
+      </div>
+      
+      <div class="rule-step" style="margin-bottom:12px;padding:10px;background:var(--bg3);border-radius:8px">
+        <div style="font-weight:700;color:var(--red);font-size:13px;margin-bottom:4px">🚫 Fouls & Penalties</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5">
+          • <b>Wrong ball pot karna:</b> Red ke bajay color, ya color ke bajay red pot kiya — 🚫 Foul!<br>
+          • <b>Foul penalty:</b> Minimum 4 points, ya pot ki gayi ball ke points (jo bhi zyada ho) opponent ko jaate hain<br>
+          • <b>Cue ball pot:</b> Foul — opponent ko ball-in-hand milta hai<br>
+          • <b>Colors phase mein galat color:</b> Galat order mein color pot kiya — foul + penalty + color wapas aa jaata hai<br>
+          • Agar aap foul karte hain, toh aapka turn khatam ho jaata hai
+        </div>
+      </div>
+      
+      <div class="rule-step" style="margin-bottom:12px;padding:10px;background:var(--bg3);border-radius:8px">
+        <div style="font-weight:700;color:var(--green);font-size:13px;margin-bottom:4px">✅ Turn Continuation</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5">
+          • Agar aap <b>sahi ball pot karte hain</b> (red jab red chahiye, color jab color chahiye), toh aapka turn <b>continue</b> hota hai! 🔄<br>
+          • Turn tab tak continue hota hai jab tak aap miss na karein, galat ball na pot karein, ya foul na karein<br>
+          • Isiliye professional snooker mein 100+ points ka break possible hai!
+        </div>
+      </div>
+      
+      <div class="rule-step" style="padding:10px;background:rgba(58,190,122,0.1);border:1px solid rgba(58,190,122,0.2);border-radius:8px">
+        <div style="font-weight:700;color:var(--gold);font-size:13px;margin-bottom:4px">💡 Tips & Strategy</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5">
+          • 🔴 <b>Black ball</b> (7 pts) pot karna sabse faydemand hai jab color ka time ho<br>
+          • 🎯 Red pot karte waqt soch ke karein ki agli baar kaunsa color pot karna hai<br>
+          • 🛡️ Cue ball ko aisi jagah rakhne ki koshish karein jahan se agla shot easy lage<br>
+          • 📊 Scoreboard dekhte rahein — reds count, next ball, aur foul count track karein<br>
+          • 🖱️ <b>Aim:</b> Mouse freely move karein • <b>Shoot:</b> Click karein!<br>
+          • ⬆️⬇️ Arrow keys se power adjust karein
+        </div>
+      </div>
+      
+      <button class="btn btn-primary" onclick="toggleSnookerRules()" style="margin-top:16px;width:100%;padding:10px">👍 Got it!</button>
+    </div>
+  </div>
 
   <!-- SHOT HISTORY -->
   <div class="shot-history">
@@ -418,6 +489,11 @@ function initGame() {
   setStatus('🔴 Red pot karo! Phir koi color pot karo.');
   updateUI();
   render();
+}
+
+function toggleSnookerRules() {
+  const overlay = document.getElementById('rules-overlay');
+  overlay.style.display = overlay.style.display === 'flex' ? 'none' : 'flex';
 }
 
 function resetGame() { initGame(); }
@@ -985,9 +1061,7 @@ function endShot() {
   }
 
   updateUI();
-  render();
-
-  // 🐛 FIX: After a correct pot, player continues their turn (snooker rules)
+  render();  // 🐛 FIXED: After a correct pot, player continues their turn (snooker rules)
   // Only end turn on missed shots, fouls, or incorrect pots
   if (continueTurn) {
     state.turn = 'player';
@@ -995,6 +1069,17 @@ function endShot() {
     state.aimX = null;
     $('player-box').classList.add('active');
     $('opp-box').classList.remove('active');
+    
+    // Show clear next ball instruction
+    if (state.nextBall === 'red') {
+      setStatus('🔴 Red pot karo! Phir koi color pot karo.');
+    } else if (state.nextBall !== 'red') {
+      setStatus(`🎨 ${state.nextBall.charAt(0).toUpperCase()+state.nextBall.slice(1)} pot karo! Phir red pot karo.`);
+    }
+    
+    // Check if reds phase is over so user can see the phase transition
+    checkRedsPhaseOver();
+    updateUI();
     render();
   } else {
     endTurn();
@@ -1188,10 +1273,13 @@ function updateUI() {
 }
 
 function checkRedsPhaseOver() {
-  if (state.phase === 'reds' && state.redsRemaining <= 0 && state.nextBall === 'red') {
+  if (state.phase === 'reds' && state.redsRemaining <= 0) {
     state.phase = 'colors';
     state.nextBall = 'yellow';
-    setStatus('🟡 All reds done! Now pot colors in order: Yellow → Green → Brown → Blue → Pink → Black');
+    const msg = '🟡 All reds done! Now pot colors in order: Yellow → Green → Brown → Blue → Pink → Black';
+    setStatus(msg);
+    updateUI();
+    render();
   }
 }
 

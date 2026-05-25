@@ -149,7 +149,64 @@
     <button class="btn btn-outline" onclick="undoLast()">↩ Undo</button>
   </div>
 
-  <div class="hint">🖱️ Freely move mouse to aim • Click to shoot! ⬆️⬇️ Arrow keys for power</div>
+  <button class="btn btn-outline btn-sm" onclick="toggleRules()" style="background:none;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:12px;padding:6px 14px;cursor:pointer;transition:all 0.2s;width:100%;margin-top:4px">📖 Rules Guide</button>
+</div>
+
+<!-- RULES MODAL -->
+<div class="rules-overlay" id="rules-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(4px);padding:20px" onclick="if(event.target===this)toggleRules()">
+  <div class="rules-dialog" style="background:var(--bg2);border:1px solid var(--gold);border-radius:12px;padding:24px;max-width:500px;width:100%;max-height:80vh;overflow-y:auto;position:relative">
+    <button onclick="toggleRules()" style="position:absolute;top:8px;right:12px;background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer">✕</button>
+    <h3 style="color:var(--gold);font-size:18px;margin-bottom:16px">🎱 8-Ball Pool — Rules Guide</h3>
+    
+    <div class="rule-step" style="margin-bottom:14px;padding:10px;background:var(--bg3);border-radius:8px">
+      <div style="font-weight:700;color:var(--gold);font-size:13px;margin-bottom:4px">Step 1: The Break</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.5">Pehle aap break shot marte hain. Balls rack ke andar hote hain, aap cue ball ko kisi bhi ball ki taraf marte hain.</div>
+    </div>
+    
+    <div class="rule-step" style="margin-bottom:14px;padding:10px;background:var(--bg3);border-radius:8px">
+      <div style="font-weight:700;color:var(--gold);font-size:13px;margin-bottom:4px">Step 2: Solids vs Stripes</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.5">Jab pehli baar aap ek ball pot karte hain (8-ball ke alawa), toh decide hota hai ki aap <b>Solids (● - 1 to 7)</b> ya <b>Stripes (○ - 9 to 15)</b> khelenge. Pehle pot ki gayi ball ka group aapka group ban jaata hai.</div>
+    </div>
+    
+    <div class="rule-step" style="margin-bottom:14px;padding:10px;background:var(--bg3);border-radius:8px">
+      <div style="font-weight:700;color:var(--gold);font-size:13px;margin-bottom:4px">Step 3: Apne Balls Pot Karna</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.5">Aapko apne group ke saare balls pot karne hain. Jab aap apna ball pot karte hain, toh aapka turn <b>continue</b> hota hai — aap dubara shoot kar sakte hain!</div>
+    </div>
+    
+    <div class="rule-step" style="margin-bottom:14px;padding:10px;background:var(--bg3);border-radius:8px">
+      <div style="font-weight:700;color:var(--gold);font-size:13px;margin-bottom:4px">Step 4: Fouls — Ball-in-Hand</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.5">Agar aap cue ball ko pocket kar dete hain (scratch), toh yeh foul hai. Opponent ko <b>ball-in-hand</b> milta hai — woh cue ball ko table pe kahin bhi rakh sakta hai.</div>
+    </div>
+    
+    <div class="rule-step" style="margin-bottom:14px;padding:10px;background:var(--bg3);border-radius:8px">
+      <div style="font-weight:700;color:var(--gold);font-size:13px;margin-bottom:4px">Step 5: 8-Ball — The Final Ball</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.5">Jab aapne apne group ke <b>saare balls pot</b> kar liye, tab aapko 8-ball pot karna hai. 8-ball pot karte hi aap <b>jeet</b> jaate hain! ⚫🏆</div>
+    </div>
+    
+    <div class="rule-step" style="margin-bottom:14px;padding:10px;background:var(--bg3);border-radius:8px">
+      <div style="font-weight:700;color:var(--red);font-size:13px;margin-bottom:4px">⚠️ Important Rules Summary</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.5">
+        • <b>Wrong ball:</b> Agar aap opponent ka ball pot karte hain, turn khatam<br>
+        • <b>Koi ball nahi poti:</b> Turn automatically khatam<br>
+        • <b>8-ball early:</b> Agar 8-ball apne saare balls pot karne se pehle pot ho gayi, toh aap <b>haar</b> jaate hain 💀<br>
+        • <b>Break on 8:</b> Agar break shot mein hi 8-ball pot ho jaye, toh aap jeet jaate hain<br>
+        • <b>Power bar:</b> Neeche power bar se shot ki taakat set karein. ⬆️⬇️ arrow keys bhi use kar sakte hain<br>
+        • <b>Aim + Shoot:</b> Freely mouse move karein to aim, phir click karein to shoot!
+      </div>
+    </div>
+    
+    <div class="rule-step" style="padding:10px;background:rgba(58,190,122,0.1);border:1px solid rgba(58,190,122,0.2);border-radius:8px">
+      <div style="font-weight:700;color:var(--green);font-size:13px;margin-bottom:4px">💡 Pro Tips</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.5">
+        • Dheere power (30-50%) se zyada control milta hai<br>
+        • Corner ki balki se balls pot karna asaan hota hai<br>
+        • Cue ball ko center mein rakhne ki koshish karein<br>
+        • Dimaag se khelein — agle shot ke baare mein sochkar khelein!
+      </div>
+    </div>
+    
+    <button class="btn btn-primary" onclick="toggleRules()" style="margin-top:16px;width:100%;padding:10px">👍 Got it!</button>
+  </div>
 </div>
 
 <script>
@@ -371,6 +428,11 @@ function initGame() {
   $('game-over-overlay').classList.remove('show');    setStatus('🎱 Freely move mouse to aim • Click to shoot!');
   updateScoreUI();
   render();
+}
+
+function toggleRules() {
+  const overlay = document.getElementById('rules-overlay');
+  overlay.style.display = overlay.style.display === 'flex' ? 'none' : 'flex';
 }
 
 function resetGame() { initGame(); }
@@ -870,48 +932,51 @@ function endShot() {
     if (SOLIDS.includes(firstPot)) {
       state.playerGroup = 'solids';
       state.oppGroup = 'stripes';
+      setStatus(`🎯 You're Solids (1-7)! Ab apne saare solids pot karo, phir 8-ball!`);
     } else {
       state.playerGroup = 'stripes';
       state.oppGroup = 'solids';
+      setStatus(`🎯 You're Stripes (9-15)! Ab apne saare stripes pot karo, phir 8-ball!`);
     }
-    setStatus(`🎯 You're ${state.playerGroup === 'solids' ? 'Solids (1-7)' : 'Stripes (9-15)'}!`);
+    // Continue turn after first pot
+    state.phase = 'aim';
+    state.turn = 'player';
+    state.pottedThisTurn = potted;
+    updateScoreUI();
+    render();
+    return;
   }
 
-  // Check if player potted their own ball
+  // Check if player potted their own ball — continue turn if yes
   if (state.playerGroup && potted.length > 0) {
     const myBalls = state.playerGroup === 'solids' ? SOLIDS : STRIPES;
     const pottedOwn = potted.filter(n => myBalls.includes(n));
     const pottedOpp = potted.filter(n => (state.oppGroup||[]).includes(n));
+    
     if (pottedOwn.length > 0) {
       state.playerPotted += pottedOwn.length;
       const myLeft = myBalls.filter(n => balls[n] && !balls[n].potted).length;
+      
       if (myLeft === 0) {
-        setStatus('🎯 All your balls potted! Now pot the 8-ball!');
-      } else {
-        setStatus(`✅ ${pottedOwn.length} ball(s) potted! Continue!`);
+        // All own balls potted! Now need to pot 8-ball
+        setStatus('🎯 All your balls potted! Now pot the 8-ball to win! ⚫');
+        state.phase = 'aim';
+        updateScoreUI();
+        render();
+        return; // Continue turn
       }
-      if (myLeft === 0 && potted.includes(8)) {
-        gameOver('player');
-        return;
-      }
-      // 🐛 FIX: Set phase to 'aim' so player can continue their turn with full UI
+      
+      // Continue turn — potted own ball
       state.phase = 'aim';
       updateScoreUI();
       render();
-      setStatus(`✅ ${pottedOwn.length} ball(s) potted! ${myLeft > 0 ? `${myLeft} remaining.` : 'Now pot the 8-ball!'}`);
+      setStatus(`✅ ${pottedOwn.length} ball(s) potted! ${myLeft} remaining. Keep going!`);
       return; // Continue turn
     } else if (pottedOpp.length > 0) {
       setStatus(`❌ Opponent's ball potted! Turn over.`);
     } else if (potted.length > 0) {
       setStatus(`❌ Wrong ball! Turn over.`);
     }
-  } else if (!state.playerGroup && potted.length > 0) {
-    // First pot happened, continue turn
-    // 🐛 FIX: Set phase to 'aim' so player can continue
-    state.phase = 'aim';
-    updateScoreUI();
-    render();
-    return;
   }
 
   if (potted.length === 0) {

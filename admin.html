@@ -361,6 +361,13 @@
         <span class="nav-icon">💳</span> Payments
         <span class="nav-badge red" id="withdraw-badge">0</span>
       </div>
+      <div class="nav-item" data-page="payment-gateway" onclick="showPage('payment-gateway',this)">
+        <span class="nav-icon">🏦</span> Payment Gateway
+      </div>
+      <div class="nav-item" data-page="partners" onclick="showPage('partners',this)">
+        <span class="nav-icon">🤝</span> Partners
+        <span class="nav-badge gold" id="partner-badge">0</span>
+      </div>
       <div class="nav-item" data-page="matches" onclick="showPage('matches',this)">
         <span class="nav-icon">⚔️</span> Live Matches
         <span class="nav-badge green" id="match-badge">0</span>
@@ -455,6 +462,46 @@
           </div>
         </div>
         <div id="payments-content"></div>
+      </div>
+
+      <!-- PARTNERS -->
+      <div class="page" id="page-partners">
+        <div class="page-header">
+          <div>
+            <div class="page-title">🤝 Partner Management</div>
+            <div class="page-sub">Partners can set up and configure games — manage all partners here</div>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-gold btn-sm" onclick="openPartnerModal()">+ Add Partner</button>
+          </div>
+        </div>
+        <div class="stats-grid" id="partner-stats"></div>
+        <div class="table-wrap" style="margin-top:16px">
+          <table><thead><tr>
+            <th>Partner</th><th>Username</th><th>Email/Phone</th><th>Commission</th><th>Games Access</th><th>Status</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="partner-table-body"></tbody></table>
+        </div>
+      </div>
+
+      <!-- PAYMENT GATEWAY -->
+      <div class="page" id="page-payment-gateway">
+        <div class="page-header">
+          <div>
+            <div class="page-title">🏦 Payment Gateway</div>
+            <div class="page-sub">Add and control payment gateways for deposits & withdrawals</div>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-gold btn-sm" onclick="openGatewayModal()">+ Add Gateway</button>
+          </div>
+        </div>
+        <div class="stats-grid" id="gateway-stats"></div>
+        <div class="table-wrap" style="margin-top:16px">
+          <table><thead><tr>
+            <th>Gateway</th><th>Type</th><th>API Key</th><th>Fee (%)</th><th>Min/Max</th><th>Status</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="gateway-table-body"></tbody></table>
+        </div>
       </div>
 
       <!-- MATCHES -->
@@ -598,52 +645,9 @@ const DB = {
 function getData(key){try{return JSON.parse(localStorage.getItem(key)||'null')}catch(e){return null}}
 function setData(key,val){localStorage.setItem(key,JSON.stringify(val))}
 
-// INIT DATA
+// INIT DATA — NO FAKE DATA! Only real data from localStorage
 function initData(){
-  if(!getData(DB.users)){
-    setData(DB.users,[
-      {id:'U-1001',name:'Rahul Sharma',phone:'9876543210',balance:1250,matches:47,wins:32,status:'active',kyc:'verified',upi:'rahul@paytm',joinDate:'2026-04-15'},
-      {id:'U-1002',name:'Priya Verma',phone:'9876543211',balance:890,matches:28,wins:18,status:'active',kyc:'verified',upi:'priya@upi'},
-      {id:'U-1003',name:'Amit Singh',phone:'9876543212',balance:2340,matches:62,wins:45,status:'active',kyc:'verified',upi:'amit@paytm'},
-      {id:'U-1004',name:'Neha Gupta',phone:'9876543213',balance:450,matches:15,wins:8,status:'active',kyc:'pending',upi:'neha@upi'},
-      {id:'U-1005',name:'Vikram Patel',phone:'9876543214',balance:0,matches:3,wins:1,status:'blocked',kyc:'rejected',upi:'vikram@paytm'},
-    ]);
-  }
-  if(!getData(DB.transactions)){
-    const txs = [];
-    const types = ['deposit','withdrawal','match_entry','match_win','commission','refund'];
-    const statuses = ['completed','pending','failed'];
-    for(let i=0;i<25;i++){
-      const d=new Date();d.setDate(d.getDate()-Math.floor(Math.random()*30));
-      txs.push({
-        id:'TXN-'+(1000+i),date:d.toISOString().split('T')[0],
-        type:types[Math.floor(Math.random()*types.length)],
-        user:['Rahul Sharma','Priya Verma','Amit Singh','Neha Gupta'][Math.floor(Math.random()*4)],
-        amount:Math.floor(Math.random()*500+50),
-        status:statuses[Math.floor(Math.random()*statuses.length)]
-      });
-    }
-    setData(DB.transactions,txs);
-  }
-  if(!getData(DB.matches)){
-    const games=['Pool','Snooker','Chess'];
-    const levels=['Starter','Standard','Pro','Advanced'];
-    const statuses=['in_progress','completed','waiting'];
-    const matches=[];
-    for(let i=0;i<10;i++){
-      matches.push({
-        id:'M-'+(2000+i),game:games[Math.floor(Math.random()*games.length)],
-        players:[
-          {name:['Rahul','Priya','Amit','Neha','Vikram'][Math.floor(Math.random()*5)]},
-          {name:['Rahul','Priya','Amit','Neha','Vikram'][Math.floor(Math.random()*5)]}
-        ],
-        level:levels[Math.floor(Math.random()*levels.length)],
-        entry:50+Math.floor(Math.random()*8)*50,
-        status:statuses[Math.floor(Math.random()*statuses.length)]
-      });
-    }
-    setData(DB.matches,matches);
-  }
+  // Only set default config if not exists (this is real config, not fake data)
   if(!getData(DB.config)){
     setData(DB.config,{
       levels:{
@@ -668,18 +672,19 @@ function initData(){
         rewarded_ad:{type:'Rewarded',active:true}
       },
       reward:{min:1,max:5},
-      earnings:Math.floor(Math.random()*15000+5000)
+      earnings:0
     });
   }
   if(!getData(DB.security)){
-    setData(DB.security,{
-      reports:[
-        {id:'AC-1',user:'user_abc',type:'Suspicious Movement',severity:'high',status:'open'},
-        {id:'AC-2',user:'user_xyz',type:'Multiple Accounts',severity:'critical',status:'investigating'},
-        {id:'AC-3',user:'user_123',type:'Unusual Win Pattern',severity:'medium',status:'open'},
-      ],
-      ipBans:[]
-    });
+    setData(DB.security,{ reports: [], ipBans: [] });
+  }
+  // Initialize payment gateways if not exists
+  if(!getData('pz_payment_gateways')){
+    setData('pz_payment_gateways', []);
+  }
+  // Initialize partners if not exists
+  if(!getData('pz_partners')){
+    setData('pz_partners', []);
   }
   renderAll();
 }

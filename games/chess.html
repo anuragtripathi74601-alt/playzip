@@ -137,8 +137,120 @@
 <div class="controls">
   <button class="btn btn-gold" onclick="undoMove()">↩ Undo</button>
   <button class="btn btn-outline" onclick="flipBoard()">🔄 Flip</button>
-  <button class="btn btn-red" onclick="if(confirm('New game?')){initGame()}">🔄 New Game</button>
+  <button class="btn btn-outline btn-sm" onclick="toggleChessRules()" style="background:none;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:12px;padding:6px 14px;cursor:pointer;transition:all 0.2s;width:100%;margin-top:4px;font-family:'Inter',sans-serif">📖 Rules Guide</button>
 </div>
+
+<!-- CHESS RULES MODAL -->
+<div class="rules-overlay" id="rules-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(4px);padding:20px" onclick="if(event.target===this)toggleChessRules()">
+  <div class="rules-dialog" style="background:var(--bg2);border:1px solid var(--gold);border-radius:12px;padding:24px;max-width:520px;width:100%;max-height:80vh;overflow-y:auto;position:relative">
+    <button onclick="toggleChessRules()" style="position:absolute;top:8px;right:12px;background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer">✕</button>
+    <h3 style="color:var(--gold);font-size:18px;margin-bottom:16px">♟️ Chess — Rules Guide</h3>
+    
+    <div style="font-size:11px;color:var(--text2);margin-bottom:14px;background:var(--bg3);padding:8px 12px;border-radius:6px">
+      <b>🎯 Goal:</b> Opponent ke <b>King</b> ko checkmate karo! Har player ke paas 16 pieces hote hain.
+    </div>
+    
+    <!-- PIECES OVERVIEW -->
+    <div class="rule-step" style="margin-bottom:12px;padding:10px;background:var(--bg3);border-radius:8px">
+      <div style="font-weight:700;color:var(--gold);font-size:13px;margin-bottom:6px">👑 Pieces & Unki Movements</div>
+      
+      <div style="font-size:12px;line-height:1.8">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          <span style="font-size:20px">♙♟</span>
+          <span><b>Pawn (8)</b> — Sirf <b>aage</b> badhta hai. Pehli baar mein 2 square, uske baad 1 square. <span style="color:var(--red)">Tirchha (diagonal) pakadta hai. Promotion bhi kar sakta hai!</span></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          <span style="font-size:20px">♖♜</span>
+          <span><b>Rook (2)</b> — Seedha <b>row aur column</b> mein aage-piche, left-right. Unlimited squares!</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          <span style="font-size:20px">♘♞</span>
+          <span><b>Knight (2)</b> — <b>L-shape</b> mein chalta hai (2+1). Pieces ke upar se <b>kood</b> sakta hai!</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          <span style="font-size:20px">♗♝</span>
+          <span><b>Bishop (2)</b> — Sirf <b>tirchha (diagonal)</b> mein chalta hai. Apne color par hi rehta hai.</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          <span style="font-size:20px">♕♛</span>
+          <span><b>Queen (1)</b> — Sabse <b>taakatwar</b> piece! Seedha aur tirchha, dono taraf ja sakta hai.</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:20px">♔♚</span>
+          <span><b>King (1)</b> — Har taraf <b>1 square</b>. Isko check mein bachana zaroori hai!</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- GAME FLOW -->
+    <div class="rule-step" style="margin-bottom:12px;padding:10px;background:var(--bg3);border-radius:8px">
+      <div style="font-weight:700;color:var(--gold);font-size:13px;margin-bottom:4px">🎮 Game Flow — Step by Step</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.8">
+        <b>Step 1:</b> ⚪ <b>White (Aap)</b> pehle move karte hain. Piece ko click karo, phir destination click karo<br>
+        <b>Step 2:</b> ⚫ <b>Black (AI)</b> apna move karta hai. Wait karo — AI sochega<br>
+        <b>Step 3:</b> Pieces ko <b>pakdo</b> — opponent ke piece ke square par jaakar capture karo<br>
+        <b>Step 4:</b> 🌱 <b>Pawn promotion:</b> Agar pawn board ke aakhri tak pahunch gaya, toh usse Queen/Rook/Bishop/Knight banao<br>
+        <b>Step 5:</b> 👑 <b>Castling:</b> King aur Rook ek saath move kar sakte hain (special move)<br>
+        <b>Step 6:</b> 🏆 <b>Checkmate:</b> King ko bachane ki koi jagah nahi — <b>YOU WIN!</b><br>
+        <b>Step 7:</b> 🤝 <b>Draw/Stalemate:</b> Agar koi legal move nahi hai aur king check mein nahi hai — draw!
+      </div>
+    </div>
+    
+    <!-- SPECIAL MOVES -->
+    <div class="rule-step" style="margin-bottom:12px;padding:10px;background:var(--bg3);border-radius:8px">
+      <div style="font-weight:700;color:var(--gold);font-size:13px;margin-bottom:4px">⚡ Special Moves</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.8">
+        <b>👑 Castling:</b> King ko 2 square Rook ki taraf slide karo, Rook king ke paas aa jayega. King aur Rook dono first move nahi hone chahiye, aur beech mein koi piece nahi hona chahiye<br>
+        <b>🫴 En Passant:</b> Agar opponent ka pawn 2 square move karta hai aur aapke pawn ke paas se guzarta hai, toh aap use capture kar sakte ho jaise woh 1 square move kiya ho<br>
+        <b>🌱 Promotion:</b> Pawn jab board ke aakhri row par pahunchta hai, toh use Queen (♛), Rook (♜), Bishop (♝), ya Knight (♞) mein badal sakte hain
+      </div>
+    </div>
+    
+    <!-- CHESS NOTATION -->
+    <div class="rule-step" style="margin-bottom:12px;padding:10px;background:var(--bg3);border-radius:8px">
+      <div style="font-weight:700;color:var(--gold);font-size:13px;margin-bottom:4px">📝 Chess Notation (Move History Samajhna)</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.8">
+        <b>e4</b> = Pawn e4 par gaya (file e, rank 4)<br>
+        <b>Nf3</b> = Knight f3 par gaya<br>
+        <b>Bxe5</b> = Bishop ne e5 par capture kiya (x = capture)<br>
+        <b>O-O</b> = Kingside castling<br>
+        <b>O-O-O</b> = Queenside castling<br>
+        <b>e8=Q</b> = Pawn e8 par pahuncha, Queen bana<br>
+        <b>+</b> = Check! ⚠️<br>
+        <b>#</b> = Checkmate! 🏆
+      </div>
+    </div>
+    
+    <!-- TIME CONTROL -->
+    <div class="rule-step" style="margin-bottom:12px;padding:10px;background:var(--bg3);border-radius:8px">
+      <div style="font-weight:700;color:var(--gold);font-size:13px;margin-bottom:4px">⏱️ Time Controls</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.8">
+        Upar <b>time buttons</b> se mode select karein:<br>
+        • <b>5 min:</b> Fast game — quick thinking!<br>
+        • <b>10 min:</b> Normal casual game<br>
+        • <b>15 min:</b> Relaxed game with more thinking time<br>
+        • <b>∞ Unlimited:</b> No timer — apna time leke khelein!<br>
+        <span style="color:var(--red)">⚠️ Time khatam hote hi aap haar jaate hain!</span>
+      </div>
+    </div>
+    
+    <!-- TIPS -->
+    <div class="rule-step" style="padding:10px;background:rgba(58,190,122,0.1);border:1px solid rgba(58,190,122,0.2);border-radius:8px">
+      <div style="font-weight:700;color:var(--green);font-size:13px;margin-bottom:4px">💡 Beginner Tips</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.8">
+        • 🏰 Pehle <b>center control</b> karein — e4, d4 pawns aage badhayein<br>
+        • 🦅 Pehle <b>Knights aur Bishops</b> develop karein, phir Queen<br>
+        • 👑 <b>Castle early</b> — King ko safe rakhna zaroori hai!<br>
+        • 🔗 Pieces ko <b>ek saath</b> kaam karne dein, akela piece mat bhejein<br>
+        • 🧠 <b>Soch-samajh ke khelein:</b> Har move ke baad sochein ki opponent kya karega<br>
+        • Undo button se apni galti wapas le sakte hain (practice ke liye)
+      </div>
+    </div>
+    
+    <button class="btn btn-primary" onclick="toggleChessRules()" style="margin-top:16px;width:100%;padding:10px">👍 Got it!</button>
+  </div>
+</div>
+
 
 <div class="status-bar" id="status">Your turn — Select a piece</div>
 
@@ -588,6 +700,11 @@ function undoMove(){
   selected=null;legalMoves=[];
   gameOver=false;
   renderBoard();renderStatus();updateMoveHistory();updateCaptured();
+}
+
+function toggleChessRules() {
+  const overlay = document.getElementById('rules-overlay');
+  overlay.style.display = overlay.style.display === 'flex' ? 'none' : 'flex';
 }
 
 // ============================================================

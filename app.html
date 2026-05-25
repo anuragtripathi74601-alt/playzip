@@ -801,11 +801,27 @@ function showOTPError(msg){
 // LOGIN / LOGOUT
 // ============================================================
 function loginUser(user){
-  setData(DB.currentUser, user);
+  // Ensure user is saved to users DB first
+  const users = getData(DB.users) || [];
+  const idx = users.findIndex(u => u.id === user.id);
+  if(idx >= 0) {
+    // Update existing user with latest data
+    Object.assign(users[idx], user);
+    setData(DB.users, users);
+    currentUser = users[idx];
+    setData(DB.currentUser, users[idx]);
+  } else {
+    // New user, add to DB
+    users.push(user);
+    setData(DB.users, users);
+    currentUser = user;
+    setData(DB.currentUser, user);
+  }
+  
   document.getElementById('auth-screen').classList.remove('show');
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('app').classList.add('show');
-  initApp(user);
+  initApp(currentUser);
 }
 
 function logoutUser(){
@@ -836,18 +852,55 @@ function initApp(user){
 }
 
 function getCurrentUser(){
-  if(currentUser) return currentUser;
-  return getData(DB.currentUser);
+  // Always re-read from localStorage to get the absolute latest
+  const stored = getData(DB.currentUser);
+  if(!stored) return currentUser || null;
+  
+  // Cross-reference with users array to ensure data is in sync
+  const users = getData(DB.users) || [];
+  const userFromDB = users.find(u => u.id === stored.id);
+  
+  if(userFromDB) {
+    // Use the DB version directly (it has the latest balance, stats, etc.)
+    setData(DB.currentUser, userFromDB);
+    currentUser = userFromDB;
+    return userFromDB;
+  }
+  
+  // FIXED: If user exists in stored but not in DB, re-add to DB instead of returning stale data
+  // This fixes the login bug where users couldn't log in again after some time
+  users.push(stored);
+  setData(DB.users, users);
+  setData(DB.currentUser, stored);
+  currentUser = stored;
+  return stored;
+}
+
+// Refresh current user data from localStorage - call after game result processing
+function refreshCurrentUser() {
+  return getCurrentUser();
 }
 
 function updateUser(data){
+  const cu = getCurrentUser();
+  if(!cu) return;
+  
   const users = getData(DB.users) || [];
-  const idx = users.findIndex(u=>u.id===currentUser.id);
-  if(idx>=0){
+  const idx = users.findIndex(u => u.id === cu.id);
+  if(idx >= 0) {
+    // Update both the users array and the currentUser reference
     Object.assign(users[idx], data);
     setData(DB.users, users);
-    Object.assign(currentUser, data);
-    setData(DB.currentUser, currentUser);
+    
+    // Update currentUser in localStorage
+    const updatedUser = users[idx];
+    setData(DB.currentUser, updatedUser);
+    currentUser = updatedUser;
+  } else {
+    // User not found in DB — re-sync
+    Object.assign(cu, data);
+    setData(DB.currentUser, cu);
+    currentUser = cu;
   }
   updateTopbar();
 }
@@ -947,6 +1000,7 @@ function selectLevel(level){
       const cacheBuster = 'v=' + Date.now();
       
       // Save game session so the game page can save results back
+      // Save game session so the game page can save results back
       const session = {
         userId: u.id,
         game: selectedGame,
@@ -956,6 +1010,13 @@ function selectLevel(level){
         mode: '1v1'
       };
       setData('pz_game_session', session);
+      
+      // ⚡ Wallet Lock: Lock the entry fee amount during match
+      if(level !== 'free' && entry > 0) {
+        const currentLock = u.lockedBalance || 0;
+        updateUser({ lockedBalance: currentLock + entry });
+        console.log(`🔒 Wallet locked: ₹${entry} for ${selectedGame} match`);
+      }
       
       if(level!=='free'){
         updateUser({balance: (u.balance||0) - entry});
@@ -1004,6 +1065,8 @@ function openFriendMatch(){showPage('friends');showToast('Select a friend to inv
 function renderWallet(){
   const u = getCurrentUser();
   document.getElementById('wallet-balance').textContent = `₹${u.balance||0}`;
+  const locked = u.lockedBalance || 0;
+  document.querySelector('.wallet-locked').textContent = `🔒 Locked: ₹${locked}`;
   
   const txs = getData(DB.txnPrefix + u.id) || [];
   document.getElementById('txn-list').innerHTML = txs.length ? txs.slice(-10).reverse().map(t=>`
@@ -1255,6 +1318,13 @@ function checkPendingGameResult(){
   updateUser({ matches: newMatches, wins: newWins });
   
   // Add payout to balance if won
+  // ✅ Wallet Unlock: Remove locked entry fee and add payout if won
+  if(fee > 0) {
+    const newLocked = Math.max(0, (u.lockedBalance || 0) - fee);
+    updateUser({ lockedBalance: newLocked });
+    console.log(`🔓 Wallet unlocked: ₹${fee} released from lock`);
+  }
+  
   if(res==='win' && payout > 0){
     updateUser({ balance: (u.balance||0) + payout });
     addTransaction('match_win', payout, `${game} match win!`, '🏆');
