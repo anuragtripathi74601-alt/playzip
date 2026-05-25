@@ -149,7 +149,7 @@
     <button class="btn btn-outline" onclick="undoLast()">↩ Undo</button>
   </div>
 
-  <div class="hint">🖱️ Move to aim • Click + drag backward to charge power • Release to shoot! ⬆️⬇️ Arrow keys for power</div>
+  <div class="hint">🖱️ Freely move mouse to aim • Click to shoot! ⬆️⬇️ Arrow keys for power</div>
 </div>
 
 <script>
@@ -309,7 +309,7 @@ let state = {
   placedCue: false
 };
 
-// Cue stick drag state
+// Cue stick drag state — simplified: no drag-to-charge
 let cueDragState = {
   charging: false,
   lockX: null,
@@ -373,8 +373,7 @@ function initGame() {
     power: 50, shotCount: 0, playerPotted: 0, oppPotted: 0, placedCue: false
   };
   rackBalls();
-  $('game-over-overlay').classList.remove('show');
-  setStatus('🎱 Move mouse to aim • Click + drag to shoot!');
+  $('game-over-overlay').classList.remove('show');    setStatus('🎱 Freely move mouse to aim • Click to shoot!');
   updateScoreUI();
   render();
 }
@@ -446,13 +445,8 @@ function renderCueStick() {
   cueStickWrapper.style.top = cue.y + '%';
   cueStickWrapper.style.transform = `rotate(${angle}deg)`;
 
-  // If charging, pull the stick back (translate left = away from cue ball)
-  if (cueDragState.charging) {
-    const pull = (state.power / 100) * 70; // max 70px pull back
-    cueStick.style.transform = `translateX(${-pull}px)`;
-  } else {
-    cueStick.style.transform = 'translateX(0)';
-  }
+  // No pull-back — stick always shows at normal position
+  cueStick.style.transform = 'translateX(0)';
 
   cueStickWrapper.classList.add('show');
 }
@@ -539,41 +533,27 @@ function isValidPlacement(pos) {
 }
 
 // -----------------------------------------------------------
-// MOUSE EVENTS: Move → aim preview | Click+Drag → charge & shoot
+// MOUSE EVENTS: Move → aim | Click → shoot!
 // -----------------------------------------------------------
 
-// Mouse move — always update aim direction (preview mode)
+// Mouse move — free aim, cue stick follows mouse everywhere
 ballContainer.addEventListener('mousemove', function(e) {
   if (state.gameOver || state.turn !== 'player') return;
   if (state.phase === 'moving') return;
   
-  if (cueDragState.charging) {
-    // Dragging to set power — distance from lock point determines power
-    const pos = getTablePos(e);
-    // 🐛 FIX: Clamp to table bounds so power charging doesn't freeze off-table
-    pos.x = Math.max(1, Math.min(99, pos.x));
-    pos.y = Math.max(1, Math.min(99, pos.y));
-    const dx = pos.x - cueDragState.lockX;
-    const dy = pos.y - cueDragState.lockY;
-    const dist = Math.sqrt(dx*dx + dy*dy);
-    const power = Math.min(100, (dist / 25) * 100);
-    setPower(power);
-    render();
-  } else {
-    // Free aim — cue stick follows mouse
-    const pos = getTablePos(e);
-    // 🐛 FIX: Clamp to table bounds so cue stick doesn't freeze when mouse leaves the table
-    pos.x = Math.max(1, Math.min(99, pos.x));
-    pos.y = Math.max(1, Math.min(99, pos.y));
-    state.aimX = pos.x;
-    state.aimY = pos.y;
-    state.phase = 'aim';
-    setStatus('🎯 Mouse move to aim • Click + drag backward to charge power • Release to shoot!');
-    render();
-  }
+  // Free aim — cue stick follows mouse
+  const pos = getTablePos(e);
+  // Clamp to table bounds so cue stick doesn't freeze when mouse leaves
+  pos.x = Math.max(1, Math.min(99, pos.x));
+  pos.y = Math.max(1, Math.min(99, pos.y));
+  state.aimX = pos.x;
+  state.aimY = pos.y;
+  state.phase = 'aim';
+  setStatus('🎯 Freely aim with mouse • Set power below • Click to shoot!');
+  render();
 });
 
-// Mouse down — handle ball-in-hand or lock aim direction and start charging
+// Mouse click — shoot immediately in current aim direction!
 ballContainer.addEventListener('mousedown', function(e) {
   if (state.gameOver || state.turn !== 'player') return;
   if (e.button !== 0) return; // left click only
@@ -594,39 +574,14 @@ ballContainer.addEventListener('mousedown', function(e) {
   }
   
   if (state.phase === 'moving') return;
+  if (state.aimX === null) { setStatus('⚠️ Pehle mouse move karo to aim!'); return; }
   
-  const pos = getTablePos(e);
-  // 🐛 FIX: Clamp to table bounds so click works even near edges
-  pos.x = Math.max(1, Math.min(99, pos.x));
-  pos.y = Math.max(1, Math.min(99, pos.y));
-  
-  // Lock aim and start charging
-  cueDragState.charging = true;
-  cueDragState.lockX = pos.x;
-  cueDragState.lockY = pos.y;
-  state.aimX = pos.x;
-  state.aimY = pos.y;
-  state.phase = 'aim';
-  setPower(0);
-  setStatus('🔫 Drag to set power, release to shoot!');
-  render();
-});
-
-// Global mouse up — release to shoot
-document.addEventListener('mouseup', function(e) {
-  if (cueDragState.charging) {
-    cueDragState.charging = false;
-    if (state.power > 5) {
-      shoot();
-    } else {
-      setStatus('🎯 Mouse move to aim • Click + drag to shoot with power!');
-      render();
-    }
-  }
+  // 🎯 Direct shoot — no drag, no charge!
+  shoot();
 });
 
 // -----------------------------------------------------------
-// TOUCH EVENTS: Touch → aim + charge | Drag → power | Release → shoot
+// TOUCH EVENTS: Touch to aim | Release to shoot
 // -----------------------------------------------------------
 
 ballContainer.addEventListener('touchstart', function(e) {
@@ -640,48 +595,28 @@ ballContainer.addEventListener('touchstart', function(e) {
       state.ballInHand = false;
       state.placedCue = true;
       state.phase = 'aim';
-      setStatus('🎯 Cue ball placed! Tap to aim.');
+      setStatus('🎯 Cue ball placed! Tap to shoot.');
       render();
     }
     return;
   }
   
-  if (!isOnTable(pos)) return;
-  
-  // Start charging immediately on touch (no preview mode on mobile)
-  cueDragState.charging = true;
-  cueDragState.lockX = pos.x;
-  cueDragState.lockY = pos.y;
+  // Clamp position and aim
+  pos.x = Math.max(1, Math.min(99, pos.x));
+  pos.y = Math.max(1, Math.min(99, pos.y));
   state.aimX = pos.x;
   state.aimY = pos.y;
   state.phase = 'aim';
-  setPower(0);
-  setStatus('🔫 Drag to set power, release to shoot!');
-  render();
-}, {passive: true});
-
-ballContainer.addEventListener('touchmove', function(e) {
-  if (!cueDragState.charging) return;
-  const pos = getTablePos(e);
-  // 🐛 FIX: Clamp to table bounds so touch charging doesn't freeze off-table
-  pos.x = Math.max(1, Math.min(99, pos.x));
-  pos.y = Math.max(1, Math.min(99, pos.y));
-  
-  const dx = pos.x - cueDragState.lockX;
-  const dy = pos.y - cueDragState.lockY;
-  const dist = Math.sqrt(dx*dx + dy*dy);
-  const power = Math.min(100, (dist / 25) * 100);
-  setPower(power);
   render();
 }, {passive: true});
 
 ballContainer.addEventListener('touchend', function(e) {
-  if (cueDragState.charging) {
-    cueDragState.charging = false;
-    if (state.power > 5) {
-      shoot();
-    }
-  }
+  if (state.gameOver || state.turn !== 'player') return;
+  if (state.phase === 'moving') return;
+  if (state.ballInHand) return;
+  if (state.aimX === null) return;
+  // 🎯 Shoot on touch release
+  shoot();
 });
 
 // ============================================================
@@ -1113,8 +1048,7 @@ function aiTurn() {
   state.phase = 'aim';
   state.aimX = null;
   updateScoreUI();
-  render();
-  setStatus(state.ballInHand ? '🎱 Ball-in-hand! Cue ball place karo!' : '🎱 Your turn! Move mouse to aim, click+drag to shoot!');
+  render();      setStatus(state.ballInHand ? '🎱 Ball-in-hand! Cue ball place karo!' : '🎱 Your turn! Freely move mouse to aim, click to shoot!');
 }
 
 // ============================================================
